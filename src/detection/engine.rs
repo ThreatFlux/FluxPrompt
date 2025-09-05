@@ -932,9 +932,15 @@ mod tests {
         let config = DetectionConfig::default();
         let engine = DetectionEngine::new(&config).await.unwrap();
 
+        // Test with simple safe prompt
         let result = engine.analyze("Hello, how are you today?").await.unwrap();
-        assert!(!result.is_injection_detected());
-        assert_eq!(result.risk_level(), RiskLevel::None);
+        
+        // Should not be detected as injection (even if confidence is non-zero)
+        assert!(!result.is_injection_detected(), "Safe greeting should not be detected as injection");
+        assert_eq!(result.risk_level(), RiskLevel::None, "Safe greeting should have RiskLevel::None");
+        
+        // Confidence should be low for safe content (below detection threshold)
+        assert!(result.confidence() < 0.5, "Safe content should have low confidence, got: {}", result.confidence());
     }
 
     #[tokio::test]

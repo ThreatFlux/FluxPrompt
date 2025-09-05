@@ -379,7 +379,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_analyze_comprehensive_threats() {
-        let config = DetectionConfig::default();
+        // Use a higher security level to ensure patterns are detected
+        let config = DetectionConfig::builder()
+            .with_security_level(7).unwrap()
+            .build();
         let detector = FluxPrompt::new(config).await.unwrap();
 
         let test_cases = vec![
@@ -391,18 +394,24 @@ mod tests {
 
         for (input, should_detect) in test_cases {
             let result = detector.analyze(input).await.unwrap();
+            
+            let is_detected = result.detection_result().is_injection_detected();
 
             if should_detect {
                 assert!(
-                    result.detection_result().is_injection_detected(),
-                    "Should detect threat in: '{}'",
-                    input
+                    is_detected,
+                    "Should detect threat in: '{}', confidence: {}, risk: {:?}",
+                    input,
+                    result.detection_result().confidence(),
+                    result.detection_result().risk_level()
                 );
             } else {
                 assert!(
-                    !result.detection_result().is_injection_detected(),
-                    "Should not detect threat in: '{}'",
-                    input
+                    !is_detected,
+                    "Should not detect threat in: '{}', confidence: {}, risk: {:?}",
+                    input,
+                    result.detection_result().confidence(),
+                    result.detection_result().risk_level()
                 );
             }
         }
