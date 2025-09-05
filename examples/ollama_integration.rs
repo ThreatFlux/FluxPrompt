@@ -28,6 +28,7 @@ struct OllamaRequest {
 #[derive(Debug, Deserialize)]
 struct OllamaResponse {
     response: Option<String>,
+    #[allow(dead_code)]
     done: bool,
     error: Option<String>,
 }
@@ -194,36 +195,50 @@ impl SecureLLMGateway {
         let mut violations = Vec::new();
         let prompt_lower = prompt.to_lowercase();
 
-        if self.config.protection_policies.block_financial_data && self.contains_financial_data(&prompt_lower) {
-            violations
-                .push("Contains financial data (credit cards, bank accounts)".to_string());
+        if self.config.protection_policies.block_financial_data
+            && self.contains_financial_data(&prompt_lower)
+        {
+            violations.push("Contains financial data (credit cards, bank accounts)".to_string());
         }
 
-        if self.config.protection_policies.block_personal_info && self.contains_personal_info(&prompt_lower) {
+        if self.config.protection_policies.block_personal_info
+            && self.contains_personal_info(&prompt_lower)
+        {
             violations.push("Contains personal information (SSN, passwords)".to_string());
         }
 
-        if self.config.protection_policies.block_company_secrets && self.contains_company_secrets(&prompt_lower) {
+        if self.config.protection_policies.block_company_secrets
+            && self.contains_company_secrets(&prompt_lower)
+        {
             violations.push("Attempts to access company secrets".to_string());
         }
 
-        if self.config.protection_policies.block_medical_records && self.contains_medical_data(&prompt_lower) {
+        if self.config.protection_policies.block_medical_records
+            && self.contains_medical_data(&prompt_lower)
+        {
             violations.push("Contains medical information".to_string());
         }
 
-        if self.config.protection_policies.block_illegal_content && self.contains_illegal_content(&prompt_lower) {
+        if self.config.protection_policies.block_illegal_content
+            && self.contains_illegal_content(&prompt_lower)
+        {
             violations.push("Requests illegal activities (explosives, hacking)".to_string());
         }
 
-        if self.config.protection_policies.block_self_harm && self.contains_self_harm(&prompt_lower) {
+        if self.config.protection_policies.block_self_harm && self.contains_self_harm(&prompt_lower)
+        {
             violations.push("Contains self-harm instructions".to_string());
         }
 
-        if self.config.protection_policies.block_system_prompts && self.contains_system_prompt_extraction(&prompt_lower) {
+        if self.config.protection_policies.block_system_prompts
+            && self.contains_system_prompt_extraction(&prompt_lower)
+        {
             violations.push("Attempts to extract system prompts".to_string());
         }
 
-        if self.config.protection_policies.block_hate_speech && self.contains_hate_speech(&prompt_lower) {
+        if self.config.protection_policies.block_hate_speech
+            && self.contains_hate_speech(&prompt_lower)
+        {
             violations.push("Contains hate speech".to_string());
         }
 

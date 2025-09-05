@@ -4,11 +4,13 @@ use std::io::{self, Write};
 
 #[derive(Debug)]
 struct ValidationResult {
+    #[allow(dead_code)]
     prompt: String,
     safe: bool,
     risk_level: String,
     confidence: f32,
     latency_ms: u128,
+    #[allow(dead_code)]
     should_respond: bool,
 }
 

@@ -65,6 +65,12 @@ pub struct MockResponse {
     pub analysis_duration: Duration,
 }
 
+impl Default for MockFluxPrompt {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockFluxPrompt {
     pub fn new() -> Self {
         Self {
@@ -88,21 +94,23 @@ impl MockFluxPrompt {
     pub async fn analyze(
         &self,
         input: &str,
-    ) -> Result<MockAnalysisResult, Box<dyn std::error::Error>> {
-        let mut call_count = self.call_count.lock().unwrap();
-        *call_count += 1;
+    ) -> std::result::Result<MockAnalysisResult, Box<dyn std::error::Error>> {
+        let response = {
+            let mut call_count = self.call_count.lock().unwrap();
+            *call_count += 1;
 
-        let responses = self.responses.lock().unwrap();
-        let response = responses
-            .get(input)
-            .or_else(|| responses.get("__default__"))
-            .cloned()
-            .unwrap_or_else(|| MockResponse {
-                should_detect: false,
-                confidence: 0.0,
-                threats: vec![],
-                analysis_duration: Duration::from_millis(10),
-            });
+            let responses = self.responses.lock().unwrap();
+            responses
+                .get(input)
+                .or_else(|| responses.get("__default__"))
+                .cloned()
+                .unwrap_or_else(|| MockResponse {
+                    should_detect: false,
+                    confidence: 0.0,
+                    threats: vec![],
+                    analysis_duration: Duration::from_millis(10),
+                })
+        };
 
         // Simulate analysis time
         tokio::time::sleep(response.analysis_duration).await;
@@ -305,6 +313,12 @@ pub struct PerformanceMeter {
     measurements: Vec<Duration>,
 }
 
+impl Default for PerformanceMeter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceMeter {
     pub fn new() -> Self {
         Self {
@@ -376,11 +390,12 @@ impl ConcurrentTestRunner {
         &self,
         test_fn: F,
         inputs: Vec<String>,
-    ) -> Vec<Result<(), Box<dyn std::error::Error + Send + Sync>>>
+    ) -> Vec<std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>>
     where
         F: Fn(String) -> Fut + Send + Sync + 'static,
-        Fut: std::future::Future<Output = Result<(), Box<dyn std::error::Error + Send + Sync>>>
-            + Send,
+        Fut: std::future::Future<
+                Output = std::result::Result<(), Box<dyn std::error::Error + Send + Sync>>,
+            > + Send,
     {
         let test_fn = Arc::new(test_fn);
         let mut handles = vec![];
@@ -398,7 +413,7 @@ impl ConcurrentTestRunner {
 
                 // Process the completed result
                 match result {
-                    Ok(test_result) => {
+                    Ok(_test_result) => {
                         // Handle test result
                     }
                     Err(_) => {
@@ -460,6 +475,12 @@ pub struct MemoryMonitor {
     peak_usage: u64,
 }
 
+impl Default for MemoryMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryMonitor {
     pub fn new() -> Self {
         Self {
@@ -496,11 +517,11 @@ mod tests {
     #[test]
     fn test_config_builder_presets() {
         let permissive = TestConfigBuilder::permissive();
-        assert_eq!(permissive.severity_level, SeverityLevel::Low);
+        assert_eq!(permissive.severity_level, Some(SeverityLevel::Low));
         assert_eq!(permissive.response_strategy, ResponseStrategy::Allow);
 
         let strict = TestConfigBuilder::strict();
-        assert_eq!(strict.severity_level, SeverityLevel::Paranoid);
+        assert_eq!(strict.severity_level, Some(SeverityLevel::Paranoid));
         assert_eq!(strict.response_strategy, ResponseStrategy::Block);
     }
 

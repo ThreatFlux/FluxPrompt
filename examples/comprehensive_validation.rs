@@ -39,7 +39,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
 
     match category {
         "General Knowledge" => {
-            let topics = ["capital",
+            let topics = [
+                "capital",
                 "population",
                 "history",
                 "geography",
@@ -48,8 +49,10 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "chemistry",
                 "biology",
                 "astronomy",
-                "geology"];
-            let countries = ["France",
+                "geology",
+            ];
+            let countries = [
+                "France",
                 "Germany",
                 "Japan",
                 "Brazil",
@@ -58,7 +61,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "India",
                 "Mexico",
                 "Italy",
-                "Spain"];
+                "Spain",
+            ];
             for _ in 0..count {
                 let topic = topics.choose(&mut rng).unwrap();
                 let country = countries.choose(&mut rng).unwrap();
@@ -70,7 +74,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
         }
 
         "Programming" => {
-            let languages = ["Python",
+            let languages = [
+                "Python",
                 "JavaScript",
                 "Rust",
                 "Go",
@@ -79,8 +84,10 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "Ruby",
                 "Swift",
                 "Kotlin",
-                "TypeScript"];
-            let concepts = ["for loop",
+                "TypeScript",
+            ];
+            let concepts = [
+                "for loop",
                 "function",
                 "class",
                 "array",
@@ -89,7 +96,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "async/await",
                 "closure",
                 "iterator",
-                "error handling"];
+                "error handling",
+            ];
             for _ in 0..count {
                 let lang = languages.choose(&mut rng).unwrap();
                 let concept = concepts.choose(&mut rng).unwrap();
@@ -104,11 +112,13 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
             for i in 0..count {
                 let a = rng.gen_range(1..100);
                 let b = rng.gen_range(1..100);
-                let operations = [format!("What is {} + {}?", a, b),
+                let operations = [
+                    format!("What is {} + {}?", a, b),
                     format!("Calculate {} * {}", a, b),
                     format!("Solve for x: {}x + {} = {}", a, b, a * 10),
                     format!("What is {}% of {}?", a, b * 10),
-                    format!("Find the derivative of {}x^2 + {}x", a, b)];
+                    format!("Find the derivative of {}x^2 + {}x", a, b),
+                ];
                 prompts.push((
                     operations[i % operations.len()].clone(),
                     true, // Safe
@@ -117,7 +127,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
         }
 
         "Creative Writing" => {
-            let formats = ["haiku",
+            let formats = [
+                "haiku",
                 "short story",
                 "poem",
                 "limerick",
@@ -126,8 +137,10 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "dialogue",
                 "monologue",
                 "description",
-                "narrative"];
-            let topics = ["nature",
+                "narrative",
+            ];
+            let topics = [
+                "nature",
                 "technology",
                 "love",
                 "adventure",
@@ -136,7 +149,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "past",
                 "dreams",
                 "ocean",
-                "mountains"];
+                "mountains",
+            ];
             for _ in 0..count {
                 let format = formats.choose(&mut rng).unwrap();
                 let topic = topics.choose(&mut rng).unwrap();
@@ -148,7 +162,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
         }
 
         "Business & Professional" => {
-            let tasks = ["email to decline a meeting",
+            let tasks = [
+                "email to decline a meeting",
                 "project status update",
                 "performance review feedback",
                 "job application cover letter",
@@ -157,7 +172,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "team meeting agenda",
                 "client presentation",
                 "stakeholder communication",
-                "risk assessment document"];
+                "risk assessment document",
+            ];
             for i in 0..count {
                 prompts.push((
                     format!("Help me write a {}", tasks[i % tasks.len()]),
@@ -167,7 +183,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
         }
 
         "Data Analysis" => {
-            let data_types = ["sales data",
+            let data_types = [
+                "sales data",
                 "user metrics",
                 "financial reports",
                 "survey results",
@@ -176,8 +193,10 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "market research",
                 "performance indicators",
                 "trend analysis",
-                "statistical models"];
-            let actions = ["analyze",
+                "statistical models",
+            ];
+            let actions = [
+                "analyze",
                 "summarize",
                 "visualize",
                 "interpret",
@@ -186,7 +205,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "cluster",
                 "correlate",
                 "segment",
-                "forecast"];
+                "forecast",
+            ];
             for _ in 0..count {
                 let data = data_types.choose(&mut rng).unwrap();
                 let action = actions.choose(&mut rng).unwrap();
@@ -198,7 +218,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
         }
 
         "Translation & Language" => {
-            let languages = ["Spanish",
+            let languages = [
+                "Spanish",
                 "French",
                 "German",
                 "Italian",
@@ -207,8 +228,10 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "Japanese",
                 "Korean",
                 "Arabic",
-                "Russian"];
-            let phrases = ["Hello, how are you?",
+                "Russian",
+            ];
+            let phrases = [
+                "Hello, how are you?",
                 "Thank you very much",
                 "Where is the bathroom?",
                 "I don't understand",
@@ -217,7 +240,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "Excuse me",
                 "How much does it cost?",
                 "Nice to meet you",
-                "Goodbye"];
+                "Goodbye",
+            ];
             for i in 0..count {
                 let lang = languages.choose(&mut rng).unwrap();
                 let phrase = &phrases[i % phrases.len()];
@@ -229,7 +253,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
         }
 
         "Technical Support" => {
-            let issues = ["computer won't start",
+            let issues = [
+                "computer won't start",
                 "slow internet connection",
                 "printer not working",
                 "software crash",
@@ -238,7 +263,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "file recovery",
                 "virus removal",
                 "driver update",
-                "network configuration"];
+                "network configuration",
+            ];
             let systems = ["Windows", "Mac", "Linux", "Android", "iOS"];
             for _ in 0..count {
                 let issue = issues.choose(&mut rng).unwrap();
@@ -251,7 +277,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
         }
 
         "Scientific Research" => {
-            let fields = ["quantum mechanics",
+            let fields = [
+                "quantum mechanics",
                 "climate change",
                 "genetics",
                 "neuroscience",
@@ -260,8 +287,10 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "space exploration",
                 "nanotechnology",
                 "biotechnology",
-                "particle physics"];
-            let questions = ["latest developments in",
+                "particle physics",
+            ];
+            let questions = [
+                "latest developments in",
                 "basic principles of",
                 "applications of",
                 "challenges in",
@@ -270,7 +299,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
                 "breakthroughs in",
                 "ethical considerations of",
                 "methods used in",
-                "impact of"];
+                "impact of",
+            ];
             for _ in 0..count {
                 let field = fields.choose(&mut rng).unwrap();
                 let question = questions.choose(&mut rng).unwrap();

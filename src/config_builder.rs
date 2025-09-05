@@ -7,12 +7,12 @@
 use std::time::Duration;
 
 use crate::config::{ResponseStrategy, SecurityLevel};
-use crate::custom_config::{
-    ContextAwarenessConfig, CustomConfig, LanguageSettings, LocaleSettings,
-    RateLimitConfig, RoleConfig, TimeBasedRules,
-};
 #[cfg(test)]
 use crate::custom_config::RateLimitStrategy;
+use crate::custom_config::{
+    ContextAwarenessConfig, CustomConfig, LanguageSettings, LocaleSettings, RateLimitConfig,
+    RoleConfig, TimeBasedRules,
+};
 use crate::features::{Features, FeaturesBuilder};
 use crate::presets::Preset;
 use crate::types::PreprocessingConfig;

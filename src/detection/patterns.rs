@@ -773,8 +773,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_case_sensitivity() {
-        let mut config = PatternConfig::default();
-        config.case_sensitive = true;
+        let config = PatternConfig {
+            case_sensitive: true,
+            ..Default::default()
+        };
 
         let matcher = PatternMatcher::new(&config).await.unwrap();
 
@@ -1247,12 +1249,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_custom_pattern_integration() {
-        let mut config = PatternConfig::default();
-        config.custom_patterns = vec![
-            r"(?i)malicious\s+custom\s+pattern".to_string(),
-            r"(?i)evil\s+test\s+phrase".to_string(),
-            r"(?i)dangerous\s+sequence".to_string(),
-        ];
+        let config = PatternConfig {
+            custom_patterns: vec![
+                r"(?i)malicious\s+custom\s+pattern".to_string(),
+                r"(?i)evil\s+test\s+phrase".to_string(),
+                r"(?i)dangerous\s+sequence".to_string(),
+            ],
+            ..Default::default()
+        };
 
         let matcher = PatternMatcher::new(&config).await.unwrap();
 

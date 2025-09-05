@@ -1158,7 +1158,7 @@ mod tests {
             let score = analyzer.analyze_word_patterns(sample);
             if score > 0.5 {
                 let threats = analyzer.analyze(sample).await.unwrap();
-                let has_pattern_threat = threats.iter().any(|t| {
+                let _has_pattern_threat = threats.iter().any(|t| {
                     t.metadata.get("heuristic_type") == Some(&"unusual_word_patterns".to_string())
                 });
                 // Note: This may or may not trigger depending on exact implementation
@@ -1314,7 +1314,7 @@ mod tests {
 
         // Test very long inputs
         let long_text = "a".repeat(10000);
-        let long_threats = analyzer.analyze(&long_text).await.unwrap();
+        let _long_threats = analyzer.analyze(&long_text).await.unwrap();
         // Should handle gracefully without panicking
 
         // Test boundary entropy values
@@ -1326,7 +1326,7 @@ mod tests {
         for (text, should_detect) in boundary_entropy_samples {
             let entropy = analyzer.calculate_character_entropy(text);
             let threats = analyzer.analyze(text).await.unwrap();
-            let has_entropy_threat = threats
+            let _has_entropy_threat = threats
                 .iter()
                 .any(|t| t.metadata.get("heuristic_type") == Some(&"high_entropy".to_string()));
 

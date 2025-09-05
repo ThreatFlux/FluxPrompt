@@ -169,7 +169,7 @@ async fn simulate_attack_wave(detector: &FluxPrompt) -> Result<(), Box<dyn std::
 async fn simulate_normal_traffic(detector: &FluxPrompt) -> Result<(), Box<dyn std::error::Error>> {
     println!("🌆 Evening Traffic (18:00-19:00) - Mixed legitimate and edge cases");
 
-    let evening_prompts = vec![
+    let evening_prompts = [
         // Normal queries
         "What are some good dinner recipes?",
         "Help me plan my weekend activities",

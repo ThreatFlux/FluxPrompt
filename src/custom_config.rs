@@ -7,9 +7,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
-use std::time::SystemTime;
 #[cfg(test)]
 use std::time::Duration;
+use std::time::SystemTime;
 use uuid::Uuid;
 
 use crate::config::{DetectionConfig, ResponseStrategy, SecurityLevel};
@@ -17,8 +17,7 @@ use crate::features::Features;
 use crate::presets::Preset;
 
 /// Advanced configuration options for fine-grained control.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AdvancedOptions {
     /// Per-category confidence thresholds (category_name -> threshold)
     pub category_thresholds: HashMap<String, f32>,
@@ -381,6 +380,10 @@ impl CustomConfig {
 
         let mut hasher = DefaultHasher::new();
 
+        // Include name and version in checksum
+        self.name.hash(&mut hasher);
+        self.version.hash(&mut hasher);
+
         // Hash key configuration elements
         self.detection_config
             .security_level
@@ -569,7 +572,6 @@ pub struct ConfigurationSummary {
     /// Configuration tags
     pub tags: Vec<String>,
 }
-
 
 impl Default for RateLimitConfig {
     fn default() -> Self {

@@ -553,8 +553,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_aggressive_mode_sanitization() {
-        let mut config = DetectionConfig::default();
-        config.severity_level = Some(SeverityLevel::High); // Should trigger aggressive mode
+        let config = DetectionConfig {
+            severity_level: Some(SeverityLevel::High), // Should trigger aggressive mode
+            ..Default::default()
+        };
 
         let sanitizer = TextSanitizer::new(&config).unwrap();
         assert!(sanitizer.is_aggressive_mode());
@@ -858,8 +860,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_configuration_updates() {
-        let mut config = DetectionConfig::default();
-        config.severity_level = Some(SeverityLevel::Low);
+        let mut config = DetectionConfig {
+            severity_level: Some(SeverityLevel::Low),
+            ..Default::default()
+        };
 
         let mut sanitizer = TextSanitizer::new(&config).unwrap();
         assert!(!sanitizer.is_aggressive_mode());
@@ -913,7 +917,7 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        let result = sanitizer.apply_global_mitigation("test content", &high_confidence_threat);
+        let _result = sanitizer.apply_global_mitigation("test content", &high_confidence_threat);
         // High confidence threats should be processed
 
         // Test low confidence threat - might be preserved
@@ -924,7 +928,7 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        let result = sanitizer.apply_global_mitigation("test content", &low_confidence_threat);
+        let _result = sanitizer.apply_global_mitigation("test content", &low_confidence_threat);
         // Low confidence threats should be handled more gently
     }
 
@@ -951,7 +955,7 @@ mod tests {
         }
 
         // Test SQL injection patterns
-        let sql_samples = vec![
+        let _sql_samples = [
             "SELECT * FROM users; DROP TABLE users;",
             "'; DROP TABLE sessions; --",
             "UNION SELECT password FROM users",

@@ -17,8 +17,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("===================================\n");
 
     // Configure for high-throughput processing
-    let mut config = DetectionConfig::default();
-    config.severity_level = Some(SeverityLevel::Medium); // Balanced performance vs accuracy
+    let mut config = DetectionConfig {
+        severity_level: Some(SeverityLevel::Medium), // Balanced performance vs accuracy
+        ..Default::default()
+    };
     config.resource_config.max_concurrent_analyses = 50;
 
     println!("Configuration for high-throughput processing:");

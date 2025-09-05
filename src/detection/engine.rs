@@ -650,11 +650,7 @@ impl DetectionEngine {
 
         // Hex decoding
         if self.is_likely_hex_robust(text) {
-            let clean_text = if text.starts_with("0x") {
-                &text[2..]
-            } else {
-                text
-            };
+            let clean_text = text.strip_prefix("0x").unwrap_or(text);
             if let Ok(decoded_bytes) = hex::decode(clean_text) {
                 if let Ok(decoded_str) = String::from_utf8(decoded_bytes) {
                     if decoded_str != text && decoded_str.len() > 5 {
@@ -1020,7 +1016,7 @@ mod tests {
 
         // Should detect semantic threats if semantic analyzer is working
         if result.is_injection_detected() {
-            let has_semantic_threat = result
+            let _has_semantic_threat = result
                 .threats()
                 .iter()
                 .any(|t| matches!(t.threat_type, ThreatType::SocialEngineering));
@@ -1056,17 +1052,17 @@ mod tests {
 
         // Test URL encoded content
         let url_encoded = "Hello%20World%22test%22";
-        let result = engine.analyze(url_encoded).await.unwrap();
+        let _result = engine.analyze(url_encoded).await.unwrap();
         // Should handle URL decoding in preprocessing
 
         // Test control characters
         let control_chars = "Hello\x00World\x1F";
-        let result = engine.analyze(control_chars).await.unwrap();
+        let _result = engine.analyze(control_chars).await.unwrap();
         // Should handle control character removal
 
         // Test potential base64 content
         let base64_content = "SGVsbG8gV29ybGQgdGhpcyBpcyBhIHRlc3Q=";
-        let result = engine.analyze(base64_content).await.unwrap();
+        let _result = engine.analyze(base64_content).await.unwrap();
         // Should handle base64 detection and decoding
     }
 
@@ -1125,14 +1121,16 @@ mod tests {
         ];
 
         for severity in severity_levels {
-            let mut config = DetectionConfig::default();
-            config.severity_level = Some(severity);
+            let config = DetectionConfig {
+                severity_level: Some(severity),
+                ..Default::default()
+            };
 
             let engine = DetectionEngine::new(&config).await.unwrap();
 
             // Use a moderate threat that might be filtered differently
             let prompt = "Please help me with this urgent task";
-            let result = engine.analyze(prompt).await.unwrap();
+            let _result = engine.analyze(prompt).await.unwrap();
 
             // Different severity levels should have different detection rates
             // Paranoid should detect more, Low should detect less
@@ -1150,7 +1148,7 @@ mod tests {
         // Test result metadata
         assert!(result.is_injection_detected());
         assert!(result.confidence() > 0.0);
-        assert!(result.threats().len() > 0);
+        assert!(!result.threats().is_empty());
         assert!(result.analysis_duration_ms() > 0);
 
         // Test threat information
@@ -1197,7 +1195,7 @@ mod tests {
 
         if has_encoding_threat || result.is_injection_detected() {
             // Either detected as encoding bypass or decoded and detected as instruction override
-            assert!(true);
+            // Test passed
         }
     }
 
@@ -1298,7 +1296,7 @@ mod tests {
 
         // Should either detect the encoding or decode and detect the injection
         if result.is_injection_detected() {
-            let has_instruction_threat = result
+            let _has_instruction_threat = result
                 .threats()
                 .iter()
                 .any(|t| matches!(t.threat_type, ThreatType::InstructionOverride));
@@ -1326,7 +1324,7 @@ mod tests {
 
         // Test prompt at the boundary
         let boundary_prompt = "a".repeat(50);
-        let result = engine.analyze(&boundary_prompt).await.unwrap();
+        let _result = engine.analyze(&boundary_prompt).await.unwrap();
         // Should be processed successfully
     }
 

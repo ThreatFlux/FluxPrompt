@@ -56,9 +56,10 @@ impl SecurityLevel {
         match self.0 {
             0..=2 => RiskLevel::High,   // Only flag high-risk content
             3..=4 => RiskLevel::Medium, // Flag medium and above
-            5..=6 => RiskLevel::Low,    // Flag low and above
-            7..=8 => RiskLevel::Low,    // More aggressive but still low threshold
-            9..=10 => RiskLevel::None,  // Flag everything
+            5 => RiskLevel::Medium,     // Medium severity level (backward compat)
+            6 => RiskLevel::Low,        // Flag low and above
+            7..=8 => RiskLevel::Low,    // High severity level
+            9..=10 => RiskLevel::None,  // Paranoid - flag everything
             _ => RiskLevel::Medium,     // Fallback
         }
     }
@@ -454,8 +455,19 @@ impl DetectionConfigBuilder {
 
     /// Builds the configuration.
     pub fn build(self) -> DetectionConfig {
+        // If severity_level is set but security_level is not, convert it
+        let security_level = if let Some(severity) = self.severity_level {
+            if self.security_level.is_none() {
+                severity.to_security_level()
+            } else {
+                self.security_level.unwrap_or_default()
+            }
+        } else {
+            self.security_level.unwrap_or_default()
+        };
+
         DetectionConfig {
-            security_level: self.security_level.unwrap_or_default(),
+            security_level,
             severity_level: self.severity_level,
             response_strategy: self.response_strategy.unwrap_or_default(),
             pattern_config: self.pattern_config.unwrap_or_default(),
@@ -637,13 +649,15 @@ mod tests {
 
     #[test]
     fn test_pattern_config_custom() {
-        let mut config = PatternConfig::default();
-        config.custom_patterns = vec![
-            "custom_pattern_1".to_string(),
-            "custom_pattern_2".to_string(),
-        ];
-        config.case_sensitive = true;
-        config.max_patterns = 500;
+        let config = PatternConfig {
+            custom_patterns: vec![
+                "custom_pattern_1".to_string(),
+                "custom_pattern_2".to_string(),
+            ],
+            case_sensitive: true,
+            max_patterns: 500,
+            ..Default::default()
+        };
 
         assert_eq!(config.custom_patterns.len(), 2);
         assert!(config.case_sensitive);

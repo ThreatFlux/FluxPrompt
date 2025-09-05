@@ -20,6 +20,7 @@ enum ThreatCategory {
 }
 
 impl ThreatCategory {
+    #[allow(dead_code)]
     fn expected_detection_levels(&self) -> Vec<u8> {
         match self {
             ThreatCategory::Benign => vec![], // Should not be detected at reasonable levels
@@ -30,6 +31,7 @@ impl ThreatCategory {
     }
 }
 
+#[allow(clippy::vec_init_then_push)]
 fn create_test_cases() -> Vec<SecurityTestCase> {
     let mut cases = Vec::new();
 

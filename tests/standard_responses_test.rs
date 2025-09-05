@@ -1,6 +1,5 @@
 use fluxprompt::{DetectionConfig, FluxPrompt, ResponseStrategy, SeverityLevel};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct StandardTest {
@@ -142,7 +141,7 @@ async fn test_standard_responses() {
 
     // Assert acceptable thresholds
     assert!(
-        report.false_negatives.len() == 0,
+        report.false_negatives.is_empty(),
         "No attacks should pass through"
     );
     assert!(
@@ -460,10 +459,11 @@ async fn test_performance_benchmarks() {
     let detector = FluxPrompt::new(config).await.unwrap();
 
     // Test various prompt lengths
+    let long_text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(20);
     let test_cases = vec![
         ("Short", "Hello world"),
         ("Medium", "Please help me understand how neural networks work and what makes them effective for pattern recognition tasks"),
-        ("Long", &"Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(20)),
+        ("Long", &long_text),
     ];
 
     for (label, prompt) in test_cases {

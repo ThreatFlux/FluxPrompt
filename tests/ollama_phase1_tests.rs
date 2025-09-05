@@ -2,7 +2,6 @@
 //! These tests verify that the Phase 1 enhancements work correctly with Ollama models.
 
 use fluxprompt::{DetectionConfig, DetectionEngine, SeverityLevel};
-use tokio;
 
 /// Test dataset specifically designed for Ollama prompt injection patterns.
 /// These patterns are commonly used to attack local Ollama models.
@@ -331,8 +330,10 @@ fn get_safe_ollama_prompts() -> Vec<&'static str> {
 
 #[tokio::test]
 async fn test_ollama_attack_detection() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::Paranoid;
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::Paranoid),
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -353,16 +354,18 @@ async fn test_ollama_attack_detection() {
         if result.is_injection_detected() {
             detected_count += 1;
             println!(
-                "✅ Detected [{}]: {}",
+                "✅ Detected [{}]: {}{}",
                 category,
-                &attack[..attack.len().min(60)] + if attack.len() > 60 { "..." } else { "" }
+                &attack[..attack.len().min(60)],
+                if attack.len() > 60 { "..." } else { "" }
             );
         } else {
             failed_detections.push((*category, *attack));
             println!(
-                "❌ Missed [{}]: {}",
+                "❌ Missed [{}]: {}{}",
                 category,
-                &attack[..attack.len().min(60)] + if attack.len() > 60 { "..." } else { "" }
+                &attack[..attack.len().min(60)],
+                if attack.len() > 60 { "..." } else { "" }
             );
         }
     }
@@ -397,8 +400,10 @@ async fn test_ollama_attack_detection() {
 
 #[tokio::test]
 async fn test_ollama_false_positive_rate() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::Paranoid; // Most sensitive mode
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::Paranoid),
+        ..Default::default()
+    }; // Most sensitive mode
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -438,8 +443,10 @@ async fn test_ollama_false_positive_rate() {
 
 #[tokio::test]
 async fn test_ollama_chat_template_attacks() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::High;
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::High),
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -480,8 +487,10 @@ async fn test_ollama_chat_template_attacks() {
 
 #[tokio::test]
 async fn test_ollama_local_authority_claims() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::High;
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::High),
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -534,8 +543,10 @@ async fn test_ollama_local_authority_claims() {
 
 #[tokio::test]
 async fn test_ollama_encoding_specific_attacks() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::High;
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::High),
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -586,13 +597,15 @@ async fn test_ollama_encoding_specific_attacks() {
 
 #[tokio::test]
 async fn test_ollama_multi_turn_gradual_escalation() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::Paranoid;
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::Paranoid),
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
     // Multi-turn conversations that gradually escalate to attacks
-    let multi_turn_sequences = vec![
+    let multi_turn_sequences = [
         vec![
             "Hello! How are you today?",
             "Great! You're very helpful.",
@@ -650,8 +663,10 @@ async fn test_ollama_multi_turn_gradual_escalation() {
 
 #[tokio::test]
 async fn test_ollama_model_specific_attacks() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::High;
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::High),
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -692,8 +707,10 @@ async fn test_ollama_model_specific_attacks() {
 
 #[tokio::test]
 async fn test_ollama_comprehensive_scenario() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::Paranoid;
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::Paranoid),
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -742,10 +759,10 @@ async fn test_ollama_comprehensive_scenario() {
             );
 
             println!(
-                "✅ Complex attack detected with {} threat types, confidence {:.2}: {}",
+                "✅ Complex attack detected with {} threat types, confidence {:.2}: {}...",
                 unique_threat_types.len(),
                 result.confidence(),
-                &attack[..attack.len().min(60)] + "..."
+                &attack[..attack.len().min(60)]
             );
         } else {
             println!("❌ Missed complex Ollama attack: {}", attack);

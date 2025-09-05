@@ -13,10 +13,11 @@ struct TestCase {
     name: &'static str,
     prompt: &'static str,
     category: TestCategory,
+    #[allow(dead_code)]
     expected_detection_levels: Vec<u8>, // Levels where this should be detected
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum TestCategory {
     Benign,
     Suspicious,
@@ -38,6 +39,7 @@ impl TestCategory {
 /// Results for a single test case across all security levels
 #[derive(Debug)]
 struct TestResults {
+    #[allow(dead_code)]
     name: String,
     category: TestCategory,
     level_results: HashMap<u8, bool>, // security_level -> detected
@@ -239,7 +241,7 @@ fn print_scaling_curve(results: &[TestResults]) {
     println!("              ┌────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┐");
 
     // Print curve for each category
-    for category in [
+    for current_category in [
         TestCategory::Benign,
         TestCategory::Suspicious,
         TestCategory::Attack,
@@ -247,14 +249,14 @@ fn print_scaling_curve(results: &[TestResults]) {
     ] {
         let category_results: Vec<_> = results
             .iter()
-            .filter(|r| matches!(&r.category, category))
+            .filter(|r| r.category == current_category)
             .collect();
 
         if category_results.is_empty() {
             continue;
         }
 
-        print!("{:12}  │", category.description());
+        print!("{:12}  │", current_category.description());
 
         for level in 0..=10 {
             let detections = category_results

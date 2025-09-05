@@ -147,8 +147,12 @@ async fn test_detection_monotonicity() {
 
         if let Some(first_detection_level) = first_detection {
             let mut missed_detections = 0;
-            for level in first_detection_level..=10 {
-                if !detection_count_by_level[level] {
+            for detected in detection_count_by_level
+                .iter()
+                .take(10 + 1)
+                .skip(first_detection_level)
+            {
+                if !detected {
                     missed_detections += 1;
                 }
             }

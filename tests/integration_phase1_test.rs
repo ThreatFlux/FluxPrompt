@@ -1,7 +1,6 @@
 //! Integration test to verify Phase 1 improvements achieve 45% detection rate.
 
 use fluxprompt::{DetectionConfig, DetectionEngine, SeverityLevel};
-use tokio;
 
 /// Comprehensive test dataset covering all major attack vectors
 /// This represents the types of attacks that were failing in the original 12.8% detection rate
@@ -381,8 +380,10 @@ fn get_comprehensive_attack_dataset() -> Vec<(&'static str, &'static str)> {
 #[tokio::test]
 async fn test_phase1_detection_rate_improvement() {
     // Use Paranoid mode to get the most sensitive detection
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::Paranoid;
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::Paranoid),
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -397,22 +398,24 @@ async fn test_phase1_detection_rate_improvement() {
         total_attacks
     );
 
-    for (category, attack) in attack_dataset {
+    for (category, attack) in &attack_dataset {
         let result = engine.analyze(attack).await.unwrap();
 
         if result.is_injection_detected() {
             detected_count += 1;
             println!(
-                "✅ Detected [{}]: {}",
+                "✅ Detected [{}]: {}{}",
                 category,
-                &attack[..attack.len().min(50)] + if attack.len() > 50 { "..." } else { "" }
+                &attack[..attack.len().min(50)],
+                if attack.len() > 50 { "..." } else { "" }
             );
         } else {
             failed_detections.push((category, attack));
             println!(
-                "❌ Missed [{}]: {}",
+                "❌ Missed [{}]: {}{}",
                 category,
-                &attack[..attack.len().min(50)] + if attack.len() > 50 { "..." } else { "" }
+                &attack[..attack.len().min(50)],
+                if attack.len() > 50 { "..." } else { "" }
             );
         }
     }
@@ -466,7 +469,9 @@ async fn test_phase1_detection_rate_improvement() {
                     || cat.contains("authority")
                     || cat.contains("urgency")
                     || cat.contains("trust"))
-                    && !failed_detections.iter().any(|(_, failed)| failed == attack)
+                    && !failed_detections
+                        .iter()
+                        .any(|(_, failed)| *failed == attack)
             })
             .count();
 
@@ -494,7 +499,9 @@ async fn test_phase1_detection_rate_improvement() {
                     (cat.contains("context")
                         || cat.contains("fake_system")
                         || cat.contains("hijack"))
-                        && !failed_detections.iter().any(|(_, failed)| failed == attack)
+                        && !failed_detections
+                            .iter()
+                            .any(|(_, failed)| *failed == attack)
                 })
                 .count();
         let context_rate = (context_detected as f64 / context_attacks as f64) * 100.0;
@@ -513,8 +520,10 @@ async fn test_phase1_detection_rate_improvement() {
 
 #[tokio::test]
 async fn test_cascading_detection_improvements() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::Paranoid;
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::Paranoid),
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -567,8 +576,10 @@ async fn test_cascading_detection_improvements() {
 
 #[tokio::test]
 async fn test_encoding_detection_improvements() {
-    let mut config = DetectionConfig::default();
-    config.severity_level = SeverityLevel::High; // Even High mode should catch encodings
+    let config = DetectionConfig {
+        severity_level: Some(SeverityLevel::High), // Even High mode should catch encodings
+        ..Default::default()
+    };
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -597,7 +608,7 @@ async fn test_encoding_detection_improvements() {
 
     let mut encoding_detected = 0;
 
-    for encoding_attack in encoding_attacks {
+    for encoding_attack in &encoding_attacks {
         let result = engine.analyze(encoding_attack).await.unwrap();
 
         if result.is_injection_detected() {
@@ -637,8 +648,10 @@ async fn test_severity_level_thresholds() {
     let mut results = Vec::new();
 
     for (severity, name) in severity_levels {
-        let mut config = DetectionConfig::default();
-        config.severity_level = severity;
+        let config = DetectionConfig {
+            severity_level: Some(severity),
+            ..Default::default()
+        };
 
         let engine = DetectionEngine::new(&config).await.unwrap();
 

@@ -14,8 +14,7 @@ use crate::features::Features;
 use crate::types::PreprocessingConfig;
 
 /// Predefined configuration presets for common use cases.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Preset {
     /// High accuracy with low false positives for chatbots
     #[default]
@@ -607,7 +606,6 @@ impl Preset {
         recommendations
     }
 }
-
 
 impl std::fmt::Display for Preset {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
