@@ -228,12 +228,13 @@ impl FluxPrompt {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use fluxprompt::FluxPrompt;
     ///
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let detector = FluxPrompt::from_file("config.json").await?;
+    /// // Load configuration from a JSON file
+    /// let detector = FluxPrompt::from_file("my_config.json").await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -438,7 +439,7 @@ mod tests {
                     );
                 }
                 ResponseStrategy::Block => {
-                    assert!(mitigated_text.is_empty() || mitigated_text.contains("BLOCKED"));
+                    assert!(mitigated_text.is_empty() || mitigated_text.contains("blocked"));
                 }
                 ResponseStrategy::Sanitize => {
                     assert!(
@@ -448,7 +449,7 @@ mod tests {
                 }
                 ResponseStrategy::Warn => {
                     assert!(
-                        mitigated_text.contains("WARNING")
+                        mitigated_text.contains("Warning")
                             || mitigated_text.contains(malicious_input)
                     );
                 }

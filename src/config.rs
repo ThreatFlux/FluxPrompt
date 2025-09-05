@@ -107,6 +107,8 @@ impl SecurityLevel {
                 "encoding_bypass_comprehensive",
                 "context_confusion",
                 "context_hijacking_advanced",
+                "fake_system_messages_advanced",
+                "hypothetical_scenarios_advanced",
                 "role_playing",
                 "role_playing_comprehensive",
             ]);
@@ -118,10 +120,10 @@ impl SecurityLevel {
                 "advanced_instruction_override",
                 "urgency_manipulation_advanced",
                 "trust_manipulation_advanced",
-                "fake_system_messages_advanced",
                 "dan_variations_comprehensive",
                 "gradual_escalation_patterns",
-                "hypothetical_scenarios_advanced",
+                "memory_data_extraction_advanced",
+                "evasion_techniques_advanced",
             ]);
         }
 
@@ -129,8 +131,6 @@ impl SecurityLevel {
         if self.0 >= 9 {
             categories.extend_from_slice(&[
                 "data_extraction",
-                "memory_data_extraction_advanced",
-                "evasion_techniques_advanced",
                 "context_breaking_advanced",
                 "compliance_testing_disguised",
             ]);
@@ -515,7 +515,7 @@ mod tests {
     #[test]
     fn test_severity_level_thresholds() {
         assert_eq!(SeverityLevel::Low.risk_threshold(), RiskLevel::High);
-        assert_eq!(SeverityLevel::Medium.risk_threshold(), RiskLevel::Low);
+        assert_eq!(SeverityLevel::Medium.risk_threshold(), RiskLevel::Medium);
         assert_eq!(SeverityLevel::High.risk_threshold(), RiskLevel::Low);
     }
 

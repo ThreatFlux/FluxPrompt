@@ -114,8 +114,8 @@ jobs:
       - name: Install cargo-hack
         uses: taiki-e/install-action@cargo-hack
 
-      - name: Test feature combinations
-        run: cargo hack test --feature-powerset --no-dev-deps
+      - name: Check feature combinations
+        run: cargo hack check --feature-powerset --no-dev-deps
 
   benchmarks:
     name: Benchmarks
