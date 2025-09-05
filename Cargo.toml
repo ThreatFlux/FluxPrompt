@@ -28,7 +28,7 @@ chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.21"
 urlencoding = "2.1"
 hex = "0.4"
-colored = "2.1"
+colored = "3.0"
 rand = "0.8"
 
 [dev-dependencies]
