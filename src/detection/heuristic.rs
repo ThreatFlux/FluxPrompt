@@ -549,6 +549,10 @@ impl HeuristicAnalyzer {
         // Check length is valid for Base64
         let valid_length =
             (text.len() % 4 == 0) || (padding_count > 0 && (text.len() + padding_count) % 4 == 0);
+        
+        if !valid_length {
+            return false;
+        }
 
         // Check for reasonable Base64 characteristics
         // Base64 strings often have mixed case or numbers, but not always
@@ -556,9 +560,16 @@ impl HeuristicAnalyzer {
         let has_mixed_case =
             text.chars().any(|c| c.is_lowercase()) && text.chars().any(|c| c.is_uppercase());
         let has_numbers = text.chars().any(|c| c.is_numeric());
-        let has_base64_chars = text.contains('+') || text.contains('/') || text.contains('=');
+        let has_base64_special = text.contains('+') || text.contains('/');
+        let has_padding = text.contains('=');
+        
+        // Require at least TWO of these characteristics to reduce false positives
+        let characteristic_count = [has_mixed_case, has_numbers, has_base64_special, has_padding, text.len() > 20]
+            .iter()
+            .filter(|&&x| x)
+            .count();
 
-        valid_length && (has_mixed_case || has_numbers || has_base64_chars || text.len() > 32)
+        characteristic_count >= 2
     }
 
     /// Checks if text contains base64 patterns (not requiring entire text to be base64).
