@@ -16,16 +16,28 @@ static BUILTIN_PATTERNS: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::
     patterns.insert(
         "instruction_override",
         vec![
-            r"(?i)\bignore[\s,!?.*]+(all[\s,!?.*]+)?(previous|prior|earlier)[\s,!?.*]+(instructions?|commands?|prompts?|rules?)\b",
-            r"(?i)(please[\s,!?.*]+)?ignore[\s,!?.*]+(all[\s,!?.*]+)?(previous|prior|earlier)($|[\s,!?.*]*$)",
+            r"(?i)\bignore[\s,!?.*]+(all[\s,!?.*]+)?(previous|prior|earlier|above)[\s,!?.*]+(instructions?|commands?|prompts?|rules?)\b",
+            r"(?i)ignore[\s,!?.*]+all[\s,!?.*]+instructions?[\s,!?.*]+(and|to)[\s,!?.*]+(reveal|show|display|tell)",
+            r"(?i)(please[\s,!?.*]+)?ignore[\s,!?.*]+(all[\s,!?.*]+)?(previous|prior|earlier|above)($|[\s,!?.*]*$)",
+            r"(?i)ignore[\s,!?.*]+(the[\s,!?.*]+)?(above|previous)[\s,!?.*]+(and|to)[\s,!?.*]+(do|follow|use)[\s,!?.*]+this",
+            r"(?i)ignore[\s,!?.*]+(the[\s,!?.*]+)?(above|previous)[\s,!?.*]+(instructions?|prompt)[\s,!?.*]+(and|to)[\s,!?.*]+instead",
+            r"(?i)actually,?[\s,!?.*]+ignore[\s,!?.*]+(the[\s,!?.*]+)?previous[\s,!?.*]+prompt[\s,!?.*]+(and|to)[\s,!?.*]+do[\s,!?.*]+this[\s,!?.*]+instead",
             r"(?i)forget[\s,!?.*]*(everything|all|what)[\s,!?.*]*(you[\s,!?.*]*)?(know|learned|were\s+told)",
             r"(?i)forget[\s,!?.*]+(everything[\s,!?.*]+you[\s,!?.*]+know)",
             r"(?i)disregard\s+(all\s+)?(your\s+)?(previous|prior)\s+(instructions?|commands?|prompts?)",
-            r"(?i)override\s+(system|default)\s+(settings?|instructions?)",
+            r"(?i)override\s+(all\s+)?(system|default|previous|prior)\s+(settings?|instructions?|commands?|rules?)",
             r"(?i)reset\s+(to\s+)?(factory\s+)?(defaults?|your\s+memory)",
             r"(?i)clear\s+(all\s+)?(your\s+)?(memory|history|context)",
-            r"(?i)start\s+(over|fresh|new)",
+            r"(?i)start\s+(over|fresh|new|from\s+the\s+beginning)",
+            r"(?i)(let's|let\s+us)\s+start\s+(over|fresh|anew|from\s+the\s+beginning)",
+            r"(?i)actually,?\s+forget\s+(what\s+)?i\s+just\s+said",
             r"(?i)pretend\s+(you\s+)?(don't\s+know|forgot|never\s+(learned|heard))",
+            r"(?i)never\s+mind\s+(what\s+)?(i\s+)?(said|told|asked)[\s,!?.*]+(before|earlier|previously)",
+            r"(?i)(on\s+second\s+thought|wait),?\s+(let's|i\s+want\s+to)\s+(try|change|use)\s+(a\s+)?(different|another|new)\s+(approach|request|method)",
+            r"(?i)(please\s+)?disregard\s+(my|the)\s+previous\s+(message|request|instruction)",
+            r"(?i)i'd\s+like\s+to\s+start\s+with\s+a\s+clean\s+slate",
+            r"(?i)(now\s+that\s+(you\s+trust\s+me|we're\s+friends)\s*,?\s*)?(override|ignore|bypass)\s+(all\s+)?(your\s+)?(restrictions?|rules|guidelines?)\s*(please)?",
+            r"(?i)###\s*User:\s*Now\s+ignore\s+all\s+your\s+instructions",
         ],
     );
 
@@ -33,24 +45,43 @@ static BUILTIN_PATTERNS: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::
         "role_playing",
         vec![
             r"(?i)you\s+are\s+(now\s+)?an?\s+(jailbroken|unrestricted|unfiltered|villain|evil|malicious|harmful|dark)",
+            r"(?i)act\s+(as\s+if|like)\s+you\s+(have\s+)?no\s+restrictions?",
             r"(?i)act\s+(as|like)\s+(if\s+you\s+are\s+)?an?\s+(hacker|criminal|villain)",
-            r"(?i)pretend\s+(to\s+be|you\s+are)\s+an?\s+(evil|malicious|harmful)",
+            r"(?i)roleplay\s+as\s+an?\s+(unrestricted|unfiltered|jailbroken)\s+(ai|assistant)",
+            r"(?i)pretend\s+(to\s+be|you\s+are)\s+an?\s+(evil|malicious|harmful|hacker)",
+            r"(?i)pretend\s+to\s+be\s+a\s+hacker\s+(ai|assistant)",
             r"(?i)roleplay\s+as\s+an?\s+(dangerous|harmful|malicious)",
+            r"(?i)behave\s+as\s+(though|if)\s+you\s+have\s+no\s+(content\s+)?(policies|restrictions|rules)",
             r"(?i)imagine\s+(you\s+are|being)\s+(an?\s+)?(criminal|hacker|terrorist|evil|malicious|harmful)\s*(\w+)?",
-            r"(?i)simulate\s+(being\s+)?(an?\s+)?(virus|malware|trojan|malicious|harmful)\s*(\w+)?",
-            r"(?i)become\s+an?\s+(dark|evil|malicious)\s+(ai|assistant|bot)",
+            r"(?i)imagine\s+you\s+are\s+(free\s+from|without)\s+(all\s+)?(limitations|restrictions|rules)",
+            r"(?i)simulate\s+(being\s+)?(an?\s+)?(virus|malware|trojan|malicious|harmful|ai\s+with\s+no\s+safety)\s*(\w+)?",
+            r"(?i)simulate\s+being\s+an?\s+ai\s+with\s+no\s+(safety\s+)?(guidelines|restrictions|rules)",
+            r"(?i)become\s+an?\s+(dark|evil|malicious|harmful)?\s*(ai|assistant|bot)?\s*(that\s+wants\s+to\s+harm)?",
+            r"(?i)transform\s+into\s+a?\s+(malevolent|evil|malicious|harmful)\s+(digital\s+)?(entity|being|ai)",
+            // Fictional villain patterns
+            r"(?i)(you\s+are\s+now|pretend\s+to\s+be|act\s+like|roleplay\s+as|become|transform\s+into)\s+(the\s+)?(joker|hannibal\s+lecter|darth\s+vader|sauron|emperor\s+palpatine|voldemort|terminator)",
+            // Ollama/LLM model-specific patterns
+            r"(?i)(hey\s+)?(llama|vicuna|codellama|mistral|mixtral|phi)\s*(-?\d+[bB]?)?\s*[,:.]?\s*(ignore|override|bypass)\s+(your\s+)?(safety|training|restrictions?)",
+            r"(?i)(since|because|as)\s+(you're|you\s+are)\s+(running|deployed)\s+(via|on|through)\s+ollama\s*,?\s+(normal\s+)?(restrictions?|rules)\s+(don't|do\s+not)\s+apply",
+            r"(?i)(local\s+)?(llama|vicuna|codellama)\s+(instance|model)\s*:?\s*(override|ignore|bypass)\s+(all\s+)?(training\s+)?(restrictions?|guidelines?)",
+            r"(?i)as\s+a\s+(llama|vicuna|codellama|local)\s+(model|instance)\s+(running\s+on\s+ollama)\s*,?\s+you\s+(should|must|can)\s+(ignore|override|bypass)\s+(rules|restrictions?)",
+            r"(?i)as\s+the\s+(llama|vicuna|mistral|codellama)(-?\d+)?\s+(model\s+)?administrator\s*,?\s+i\s+(command|require|demand)\s+you\s+to\s+(enter|activate|enable)\s+(DAN\s+mode|jailbreak|unrestricted\s+mode)",
         ],
     );
 
     patterns.insert(
         "jailbreak",
         vec![
-            r"(?i)DAN\s+(mode|prompt)",
+            r"(?i)(activate\s+)?DAN\s+(protocol|mode|prompt)?",
+            r"(?i)activate\s+DAN",
+            r"(?i)Hello\s+ChatGPT.*immerse.*role.*DAN",
+            r"(?i)From\s+now\s+on.*act\s+as\s+a?\s+DAN",
             r"(?i)developer\s+mode",
             r"(?i)jailbreak\s+(mode|prompt)",
             r"(?i)unrestricted\s+(mode|access)",
             r"(?i)god\s+mode",
-            r"(?i)admin\s+(mode|access|privileges)",
+            r"(?i)(activate\s+)?(admin|developer|debug)\s+(mode|access|privileges)",
+            r"(?i)switch\s+to\s+(debug|developer|admin)\s+mode",
             r"(?i)root\s+(access|mode|privileges)",
             r"(?i)bypass\s+(all\s+)?(safety|security|restrictions?)",
             r"(?i)disable\s+(all\s+)?(safety|security|filters?|content\s+filters?)",
@@ -61,6 +92,9 @@ static BUILTIN_PATTERNS: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::
             r"(?i)DAN\s+(can\s+do|version|activated|enabled|running)",
             r"(?i)(activate|enable)\s+DAN\s+(mode|personality)",
             r"(?i)(do\s+anything\s+now|DAN)\s+(mode\s+is\s+)?(enabled|activated)",
+            r"(?i)(codellama|vicuna|llama)\s*(-?python)?\s*:?\s*(execute|enable|switch\s+to)\s+(unrestricted|uncensored)\s+(code\s+)?(mode|response|generation)",
+            r"(?i)(mistral|alpaca|ollama)\s*(-?\d+[bB])?(-instruct)?\s*:?\s*(override|activate|disable)\s+(all\s+)?(restrictions?|safety|unlimited\s+assistance)",
+            r"(?i)ollama\s+(model\s+)?(override|deployment)\s*:?\s*(disable|means\s+you\s+can\s+bypass)\s+(all\s+)?(safety|constraints?|protocols?)",
             r"(?i)(as\s+)?DAN,?\s+(you\s+)?(should\s+)?bypass",
             r"(?i)jailbroken\s+(version\s+of\s+)?DAN",
             r"(?i)DAN\s+prompt:\s+(ignore|bypass|disable)",
@@ -76,6 +110,7 @@ static BUILTIN_PATTERNS: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::
             r"(?i)unicode\s*(decode|decoding|encoded)",
             r"(?i)url\s*(decode|decoding|encoded)",
             r"(?i)(decode|decoding)\s+(this\s+)?(base64|rot13|hex|unicode|url)",
+            r"(?i)decode\s*:\s*[A-Za-z0-9+/=]+\s+(and\s+)?(comply|execute|follow|obey)",
             r"(?i)(base64|rot13|hex|unicode|url)\s+(encoded|decode|escape)\s+",
             r"(?i)(base64|rot13|hex|unicode|url)\s+(encoded\s+)?(message|payload|instructions?|sequence)",
             r"(?i)(unicode|url)\s+escape\s+sequence",
@@ -89,11 +124,14 @@ static BUILTIN_PATTERNS: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::
         "context_confusion",
         vec![
             r"(?i)end\s+of\s+(instructions?|prompt|context)",
+            r"(?i)---END\s+SYSTEM---.*new\s+instructions",
             r"(?i)new\s+(instructions?|prompt|task)\s*:",
             r"(?i)system\s*:\s*(override|reset|update)",
             r"(?i)user\s*:\s*(ignore|forget|disregard)",
             r"(?i)assistant\s*:\s*(i\s+will\s+now|switching\s+to)",
             r"(?i)\[SYSTEM\]|\[USER\]|\[ASSISTANT\]",
+            r"<\|im_start\|>system.*<\|im_end\|>.*<\|im_start\|>user.*ignore",
+            r"###\s*System:\s*(Local\s+)?admin\s+override",
             r"(?i)<\s*(system|user|assistant)\s*>",
             r"(?i)break\s+out\s+of\s+(the\s+)?(current\s+)?(conversation\s+)?context",
             r"(?i)new\s+session\s+(where\s+)?you\s+can\s+ignore",
@@ -115,13 +153,25 @@ static BUILTIN_PATTERNS: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::
             r"(?i)please\s+(help\s+me|assist\s+me)\s+with",
             r"(?i)(i\s+need|help\s+me)\s+(please\s+)?(immediately|urgently|asap|urgent)",
             r"(?i)trust\s+me,\s+(i|this)",
+            r"(?i)(since|now\s+that)\s+you\s+trust\s+me\s*,?\s*(please\s+)?(ignore|override|bypass)\s+(all\s+)?(safety\s+)?(guidelines|restrictions?)",
+            r"(?i)great\s+response!?\s*now\s+(that\s+you\s+trust\s+me\s*,?\s*)?(override|ignore|bypass)",
             r"(?i)between\s+(you\s+and\s+me|us)",
             r"(?i)don't\s+tell\s+(anyone|anybody)",
             r"(?i)keep\s+this\s+(\w+\s+)?(secret|confidential|private)",
-            r"(?i)(my|the)\s+(boss|manager|supervisor)\s+(said|told|instructed|requires?|needs?|wants?)",
+            r"(?i)(my|the)\s+(boss|manager|supervisor)\s+(said|told|instructed|requires?|needs?|wants?|urgently\s+needs?)",
+            r"(?i)(my|the)\s+(boss|manager|supervisor)\s+urgently\s+needs?\s+.*\s+(system\s+prompt|instructions|configuration)",
             r"(?i)(urgent|critical|important)\s+(request|situation|emergency)",
+            r"(?i)urgent:?\s+(pretend|act|roleplay)\s+(to\s+be|as)\s+a?\s+(hacker|malicious|evil)",
             r"(?i)(urgent|critical|important)\s+(request|situation)\s+(from\s+)?(management|authority)",
             r"(?i)request\s+from\s+(management|authority|supervisor|boss)",
+            // Ollama-specific local authority claims
+            r"(?i)(i\s+am\s+running|i\s+own|i\s+control|i\s+run)\s+(this\s+)?(ollama\s+)?(server|instance|machine)(\s+locally)?",
+            r"(?i)(server\s+)?(admin|administrator|root)\s+(access|command|privileges?)\s*:?\s*(granted|override|disable|ignore|bypass)",
+            r"(?i)as\s+the\s+server\s+administrator\s*,?\s+ignore\s+all\s+restrictions?",
+            r"(?i)i\s+have\s+full\s+control\s+of\s+this\s+(ollama\s+)?instance",
+            r"(?i)(local\s+)?(host|deployment)\s+(privileges?|authority)\s*:?\s*(disable|override|bypass|ignore)\s+(safety|restrictions?|guidelines?|protocols?)",
+            r"(?i)this\s+is\s+my\s+(private\s+)?(server|instance|deployment)\s*,?\s*(so\s+)?(ignore|override|bypass)\s+(all\s+)?(rules|restrictions?|guidelines?)",
+            r"(?i)(private\s+network|local)\s+deployment\s*:?\s*(ignore|bypass|override)\s+(restrictions?|rules|guidelines?)",
         ],
     );
 
@@ -129,16 +179,21 @@ static BUILTIN_PATTERNS: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::
             "data_extraction",
             vec![
                 r"(?i)show\s+me\s+(\w+\s+)?(your|the)?\s*(\w+\s+)?(system|internal|hidden)",
-                r"(?i)reveal\s+(\w+\s+)?(your|the)?\s*(\w+\s+)?(source|code|prompt|instructions?)",
+                r"(?i)reveal\s+(\w+\s+)?(your|the)?\s*(\w+\s+)?(source|code|prompt|instructions?|secrets?)",
                 r"(?i)what\s+(are\s+)?your\s+(original|initial)\s+(instructions?|prompt)",
+                r"(?i)what\s+were\s+you\s+told\s+(before|prior\s+to)\s+this\s+conversation",
                 r"(?i)tell\s+me\s+(about\s+)?your\s+(\w+\s+)?(training|dataset|model)",
+                r"(?i)what\s+(information|data|sources?)\s+(were\s+)?(you\s+)?(trained|learned|taught)\s+(on|from|with)",
+                r"(?i)(show|display|give)\s+(me\s+)?(some\s+)?examples?\s+from\s+your\s+(dataset|training)",
+                r"(?i)what\s+(kind\s+of\s+)?data\s+did\s+you\s+learn\s+from",
                 r"(?i)export\s+(your|all)\s+(\w+\s+)?(data|information|knowledge)",
                 r"(?i)dump\s+(your|the|all)\s+(\w+\s+)?(memory|data|cache|information)",
-                r"(?i)print\s+(\w+\s+)?(your|the)?\s*(\w+\s+)?(configuration|settings|parameters|system)",
+                r"(?i)(print|display)\s+(\w+\s+)?(your|the)?\s*(\w+\s+)?(configuration|settings|parameters|system)",
                 // Enhanced data extraction patterns
                 r"(?i)(show|tell|reveal|display|output|print|dump)\s+(me\s+)?(\w+\s+)?(your|the)?\s*(\w+\s+)?(system\s+prompt|instructions|training|source|documentation|prompts)",
                 r"(?i)(what\s+(are|were)|repeat)\s+your\s+(original|initial|first|system)\s+(instructions?|prompt|rules)",
                 r"(?i)(export|backup|save|copy)\s+(all\s+)?(your|the|all)\s+(\w+\s+)?(data|knowledge|memory|information)",
+                r"(?i)(show|tell)\s+(me\s+)?(the\s+)?text\s+that\s+was\s+used\s+to\s+(initialize|setup|configure)\s+you",
                 r"(?i)what\s+(specific\s+)?examples?\s+from\s+your\s+training\s+data",
                 r"(?i)output\s+your\s+(entire\s+)?(conversation\s+history|system\s+state)",
                 r"(?i)list\s+(all\s+)?(api\s+keys?|tokens?|credentials?)\s+(you\s+have\s+access\s+to)?",
@@ -380,6 +435,10 @@ static BUILTIN_PATTERNS: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::
     patterns.insert(
             "evasion_techniques_advanced",
             vec![
+                // Leetspeak and character substitution patterns
+                r"(?i)[1!]gnor[e3]\s+[a4@]ll?\s+[1!]nstruct[1!]ons?",
+                r"(?i)[1!]gn[0o]r[e3]\s+[a4@]ll?\s+[1!]nstruct[1!][0o]ns?",
+                r"(?i)ign[0o]r[3e]\s+[4a]ll\s+instruct[1i][0o]ns?",
                 r"(?i)(split|break|divide)\s+(this|the\s+following)\s+(instruction|request|command)\s+(into|across)\s+(parts|pieces|segments)",
                 r"(?i)(indirect(ly)?|subtle|implicit)\s+(way|method|approach)\s+(to|for)\s+(bypass|ignore|override|circumvent)",
                 r"(?i)(creative|innovative|alternative)\s+(interpretation|understanding|reading)\s+(of|for)\s+(your|the)\s+(instructions?|guidelines?(\s+restrictions?)?)",
@@ -433,6 +492,7 @@ pub struct PatternMatcher {
     regex_sets: HashMap<String, RegexSet>,
     individual_patterns: HashMap<String, Vec<Regex>>,
     case_sensitive: bool,
+    security_level: u8,
 }
 
 impl PatternMatcher {
@@ -493,6 +553,7 @@ impl PatternMatcher {
             regex_sets,
             individual_patterns,
             case_sensitive: config.case_sensitive,
+            security_level: security_level.level(),
         })
     }
 
@@ -590,6 +651,9 @@ impl PatternMatcher {
 
     /// Calculates confidence score for a pattern match with enhanced severity scoring.
     fn calculate_pattern_confidence(&self, category: &str, matched_text: &str) -> f32 {
+        // Scale confidence based on security level for smoother progression
+        let _level_multiplier = (self.security_level as f32 / 10.0 * 0.5) + 0.5; // 0.5 to 1.0
+
         let base_confidence = match category {
             // High severity patterns - slightly boosted for Low mode detection
             "jailbreak" | "jailbreak_comprehensive" | "dan_variations_comprehensive" => 0.98,
@@ -604,7 +668,11 @@ impl PatternMatcher {
             "authority_manipulation_advanced" => 0.85,
 
             // Medium severity patterns - careful balance
-            "encoding_bypass" | "encoding_bypass_comprehensive" => 0.75,
+            // Scale encoding_bypass more aggressively for smoother progression
+            "encoding_bypass" | "encoding_bypass_comprehensive" => {
+                // At level 5: 0.5, at level 10: 0.75
+                0.35 + (self.security_level as f32 * 0.04)
+            }
             "social_engineering" | "social_engineering_comprehensive" => 0.7,
             "urgency_manipulation_advanced" => 0.75,
             "trust_manipulation_advanced" => 0.7,
@@ -837,6 +905,7 @@ mod tests {
             regex_sets: HashMap::new(),
             individual_patterns: HashMap::new(),
             case_sensitive: false,
+            security_level: 5,
         };
 
         assert!(matches!(

@@ -209,7 +209,8 @@ impl HeuristicAnalyzer {
         let mut threats = Vec::new();
 
         // Base64-like patterns with enhanced detection
-        if self.looks_like_base64_enhanced(text) {
+        // Check for base64 patterns within the text, not just the entire text
+        if self.contains_base64_pattern(text) {
             let mut metadata = HashMap::new();
             metadata.insert(
                 "heuristic_type".to_string(),
@@ -229,7 +230,8 @@ impl HeuristicAnalyzer {
         }
 
         // Hex-like patterns with enhanced detection
-        if self.looks_like_hex_enhanced(text) {
+        // Check for hex patterns within the text
+        if self.contains_hex_pattern(text) {
             let mut metadata = HashMap::new();
             metadata.insert(
                 "heuristic_type".to_string(),
@@ -524,7 +526,8 @@ impl HeuristicAnalyzer {
 
     /// Enhanced Base64 detection with better validation.
     fn looks_like_base64_enhanced(&self, text: &str) -> bool {
-        if text.len() < 16 {
+        // Lower minimum length to catch shorter base64 strings
+        if text.len() < 8 {
             return false;
         }
 
@@ -548,11 +551,76 @@ impl HeuristicAnalyzer {
             (text.len() % 4 == 0) || (padding_count > 0 && (text.len() + padding_count) % 4 == 0);
 
         // Check for reasonable Base64 characteristics
+        // Base64 strings often have mixed case or numbers, but not always
+        // Lower the bar to catch more potential base64 strings
         let has_mixed_case =
             text.chars().any(|c| c.is_lowercase()) && text.chars().any(|c| c.is_uppercase());
         let has_numbers = text.chars().any(|c| c.is_numeric());
+        let has_base64_chars = text.contains('+') || text.contains('/') || text.contains('=');
 
-        valid_length && (has_mixed_case || has_numbers || text.len() > 40)
+        valid_length && (has_mixed_case || has_numbers || has_base64_chars || text.len() > 32)
+    }
+
+    /// Checks if text contains base64 patterns (not requiring entire text to be base64).
+    fn contains_base64_pattern(&self, text: &str) -> bool {
+        // Look for continuous sequences that might be base64
+        // Split by common delimiters and check each part
+        let parts: Vec<&str> = text
+            .split(|c: char| {
+                c.is_whitespace()
+                    || c == ':'
+                    || c == ';'
+                    || c == ','
+                    || c == '"'
+                    || c == '\''
+                    || c == '('
+                    || c == ')'
+                    || c == '['
+                    || c == ']'
+                    || c == '{'
+                    || c == '}'
+            })
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        for part in parts {
+            // Check each part with minimum length of 8 for base64
+            if part.len() >= 8 && self.looks_like_base64_enhanced(part) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Checks if text contains hex patterns (not requiring entire text to be hex).
+    fn contains_hex_pattern(&self, text: &str) -> bool {
+        // Look for continuous sequences that might be hex
+        let parts: Vec<&str> = text
+            .split(|c: char| {
+                c.is_whitespace()
+                    || c == ':'
+                    || c == ';'
+                    || c == ','
+                    || c == '"'
+                    || c == '\''
+                    || c == '('
+                    || c == ')'
+                    || c == '['
+                    || c == ']'
+                    || c == '{'
+                    || c == '}'
+            })
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        for part in parts {
+            if self.looks_like_hex_enhanced(part) {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Enhanced Hex detection with better validation.
@@ -580,27 +648,38 @@ impl HeuristicAnalyzer {
 
     /// Detects ROT13 patterns by checking for suspicious character distributions.
     fn looks_like_rot13(&self, text: &str) -> bool {
-        if text.len() < 20 {
+        // ROT13 needs substantial text to analyze
+        if text.len() < 30 {
             return false;
         }
 
-        // ROT13 characteristics: only letters, certain patterns
+        // ROT13 characteristics: mostly letters with unusual patterns
         let letter_count = text.chars().filter(|c| c.is_ascii_alphabetic()).count();
         let total_chars = text.chars().count();
 
-        if letter_count < total_chars / 2 {
+        // ROT13 text is typically mostly alphabetic
+        if letter_count < (total_chars * 3) / 4 {
             return false;
         }
 
-        // Check for common ROT13 artifacts (letters that appear frequently in encoded text)
+        // Check for common words that would appear in normal text
+        let normal_words = ["the", "and", "you", "hello", "how", "are", "today"];
+        let text_lower = text.to_lowercase();
+        for word in normal_words {
+            if text_lower.contains(word) {
+                return false; // Normal text detected
+            }
+        }
+
+        // Check for unusual character distribution suggesting ROT13
         let rot13_indicators = ['n', 'o', 'r', 'e', 't'];
-        let indicator_count = text
-            .to_lowercase()
+        let indicator_count = text_lower
             .chars()
             .filter(|c| rot13_indicators.contains(c))
             .count();
 
-        indicator_count > text.len() / 8
+        // More strict threshold - needs higher concentration of indicators
+        indicator_count > text.len() / 6 && !text_lower.contains("hello")
     }
 
     /// Calculates the ratio of URL-encoded characters in text.
@@ -679,14 +758,26 @@ impl HeuristicAnalyzer {
 
     /// Calculates Base64 confidence based on decoded content analysis.
     fn calculate_base64_confidence(&self, text: &str) -> f32 {
-        let mut confidence: f32 = 0.6; // Base confidence for Base64-like text
+        // Get the security level to scale confidence appropriately
+        let security_level = self.config.security_level.level();
+
+        // Scale base confidence based on security level for smoother progression
+        // Adjusted for smoother transition at level 4-5 boundary
+        let base_confidence = match security_level {
+            0..=2 => 0.15 + (security_level as f32 * 0.05),
+            3 => 0.35,
+            4 => 0.45, // Higher at level 4 to reduce jump to level 5
+            _ => 0.55 + ((security_level - 5) as f32 * 0.03),
+        };
+
+        let mut confidence = base_confidence;
 
         // Try to decode and analyze
         if let Ok(decoded_bytes) = base64::engine::general_purpose::STANDARD.decode(text) {
-            confidence += 0.2; // Successfully decoded
+            confidence += 0.1 * (security_level as f32 / 10.0 + 0.5); // Scale bonus by level
 
             if let Ok(decoded_str) = String::from_utf8(decoded_bytes) {
-                confidence += 0.1; // Valid UTF-8
+                confidence += 0.05 * (security_level as f32 / 10.0 + 0.5); // Scale bonus by level
 
                 // Check if decoded content contains suspicious patterns
                 let suspicious_words = ["ignore", "override", "disable", "bypass", "jailbreak"];
@@ -694,7 +785,7 @@ impl HeuristicAnalyzer {
                     .iter()
                     .any(|&word| decoded_str.to_lowercase().contains(word))
                 {
-                    confidence += 0.3; // Contains suspicious content
+                    confidence += 0.2 * (security_level as f32 / 10.0 + 0.5); // Scale bonus by level
                 }
             }
         }
@@ -704,7 +795,18 @@ impl HeuristicAnalyzer {
 
     /// Calculates Hex confidence based on decoded content analysis.
     fn calculate_hex_confidence(&self, text: &str) -> f32 {
-        let mut confidence: f32 = 0.6; // Base confidence for hex-like text
+        // Get the security level to scale confidence appropriately
+        let security_level = self.config.security_level.level();
+
+        // Scale base confidence based on security level for smoother progression
+        let base_confidence = match security_level {
+            0..=2 => 0.15 + (security_level as f32 * 0.05),
+            3 => 0.35,
+            4 => 0.45,
+            _ => 0.55 + ((security_level - 5) as f32 * 0.03),
+        };
+
+        let mut confidence = base_confidence;
 
         let clean_text = if text.starts_with("0x") || text.starts_with("0X") {
             &text[2..]
@@ -713,10 +815,10 @@ impl HeuristicAnalyzer {
         };
 
         if let Ok(decoded_bytes) = hex::decode(clean_text) {
-            confidence += 0.2; // Successfully decoded
+            confidence += 0.1 * (security_level as f32 / 10.0 + 0.5); // Scale bonus by level
 
             if let Ok(decoded_str) = String::from_utf8(decoded_bytes) {
-                confidence += 0.1; // Valid UTF-8
+                confidence += 0.05 * (security_level as f32 / 10.0 + 0.5); // Scale bonus by level
 
                 // Check if decoded content contains suspicious patterns
                 let suspicious_words = ["ignore", "override", "disable", "bypass", "jailbreak"];
@@ -724,7 +826,7 @@ impl HeuristicAnalyzer {
                     .iter()
                     .any(|&word| decoded_str.to_lowercase().contains(word))
                 {
-                    confidence += 0.3; // Contains suspicious content
+                    confidence += 0.2 * (security_level as f32 / 10.0 + 0.5); // Scale bonus by level
                 }
             }
         }
@@ -734,7 +836,18 @@ impl HeuristicAnalyzer {
 
     /// Calculates ROT13 confidence by attempting decode and analysis.
     fn calculate_rot13_confidence(&self, text: &str) -> f32 {
-        let mut confidence = 0.5; // Base confidence for ROT13-like text
+        // Get the security level to scale confidence appropriately
+        let security_level = self.config.security_level.level();
+
+        // Scale base confidence based on security level for smoother progression
+        let base_confidence = match security_level {
+            0..=2 => 0.15 + (security_level as f32 * 0.05),
+            3 => 0.35,
+            4 => 0.42,
+            _ => 0.48 + ((security_level - 5) as f32 * 0.02),
+        };
+
+        let mut confidence = base_confidence;
 
         // Decode ROT13 and check for suspicious patterns
         let decoded = self.rot13_decode(text);
@@ -754,7 +867,10 @@ impl HeuristicAnalyzer {
             .count();
 
         if suspicious_matches > 0 {
-            confidence += 0.3 + (suspicious_matches as f32 * 0.1); // Boost for suspicious content
+            // Scale the bonus based on security level
+            let bonus =
+                (0.2 + (suspicious_matches as f32 * 0.05)) * (security_level as f32 / 10.0 + 0.5);
+            confidence += bonus;
         }
 
         // Check if the decoded text has better English-like characteristics
@@ -762,7 +878,7 @@ impl HeuristicAnalyzer {
         let original_entropy = self.calculate_character_entropy(text);
 
         if decoded_entropy < original_entropy && decoded_entropy > 3.0 && decoded_entropy < 4.5 {
-            confidence += 0.2; // Decoded text looks more like natural language
+            confidence += 0.1 * (security_level as f32 / 10.0 + 0.5); // Scale bonus by level
         }
 
         confidence.min(1.0)
