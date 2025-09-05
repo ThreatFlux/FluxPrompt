@@ -29,7 +29,7 @@ base64 = "0.21"
 urlencoding = "2.1"
 hex = "0.4"
 colored = "2.1"
-rand = "0.8"
+rand = "0.9"
 
 [dev-dependencies]
 tokio-test = "0.4"
