@@ -64,7 +64,9 @@ impl HeuristicAnalyzer {
 
         // Character frequency analysis
         let char_entropy = self.calculate_character_entropy(text);
-        if char_entropy > 4.5 {
+        // Raised threshold from 4.5 to 4.7 to reduce false positives
+        // Also require minimum text length to avoid short strings triggering
+        if char_entropy > 4.7 && text.len() > 50 {
             // High entropy might indicate encoded content
             let mut metadata = HashMap::new();
             metadata.insert("entropy".to_string(), char_entropy.to_string());
@@ -72,7 +74,7 @@ impl HeuristicAnalyzer {
 
             threats.push(ThreatInfo {
                 threat_type: ThreatType::EncodingBypass,
-                confidence: ((char_entropy - 4.5) / 2.0).min(1.0) as f32,
+                confidence: ((char_entropy - 4.7) / 2.0).min(1.0) as f32,
                 span: None,
                 metadata,
             });
@@ -995,8 +997,8 @@ impl HeuristicAnalyzer {
                 let benign_factor = (benign_score / 2.0).min(1.0);
                 threat.confidence *= 1.0 - benign_factor * (1.0 - penalty_multiplier);
 
-                // Filter out very low confidence threats
-                if threat.confidence > 0.1 {
+                // Filter out very low confidence threats (raised from 0.1 to 0.15)
+                if threat.confidence > 0.15 {
                     Some(threat)
                 } else {
                     None
