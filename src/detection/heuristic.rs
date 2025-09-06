@@ -377,9 +377,12 @@ impl HeuristicAnalyzer {
             *char_counts.entry(c).or_insert(0) += 1;
         }
 
-        // Calculate entropy
+        // Calculate entropy - sort values for deterministic iteration order
+        let mut counts: Vec<_> = char_counts.values().copied().collect();
+        counts.sort_unstable();
+
         let mut entropy = 0.0;
-        for &count in char_counts.values() {
+        for count in counts {
             let probability = count as f64 / total_chars;
             if probability > 0.0 {
                 entropy -= probability * probability.log2();
