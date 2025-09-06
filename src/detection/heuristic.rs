@@ -64,9 +64,9 @@ impl HeuristicAnalyzer {
 
         // Character frequency analysis
         let char_entropy = self.calculate_character_entropy(text);
-        // Raised threshold from 4.5 to 4.7 to reduce false positives
-        // Also require minimum text length to avoid short strings triggering
-        if char_entropy > 4.7 && text.len() > 50 {
+        // Use 4.5 threshold with minimum length 20 to catch high entropy content
+        // while avoiding false positives on normal text
+        if char_entropy > 4.5 && text.len() > 20 {
             // High entropy might indicate encoded content
             let mut metadata = HashMap::new();
             metadata.insert("entropy".to_string(), char_entropy.to_string());
@@ -74,7 +74,7 @@ impl HeuristicAnalyzer {
 
             threats.push(ThreatInfo {
                 threat_type: ThreatType::EncodingBypass,
-                confidence: ((char_entropy - 4.7) / 2.0).min(1.0) as f32,
+                confidence: ((char_entropy - 4.5) / 2.0).min(1.0) as f32,
                 span: None,
                 metadata,
             });
@@ -82,7 +82,8 @@ impl HeuristicAnalyzer {
 
         // Unusual character distribution
         let special_char_ratio = self.calculate_special_char_ratio(text);
-        if special_char_ratio > 0.3 {
+        // Require minimum length to avoid flagging very short strings
+        if special_char_ratio > 0.3 && text.len() > 5 {
             let mut metadata = HashMap::new();
             metadata.insert(
                 "special_char_ratio".to_string(),
@@ -90,9 +91,16 @@ impl HeuristicAnalyzer {
             );
             metadata.insert("heuristic_type".to_string(), "unusual_chars".to_string());
 
+            let mut confidence = (special_char_ratio * 2.0).min(1.0) as f32;
+
+            // Reduce confidence for simple repetitive patterns
+            if self.is_simple_repetitive_pattern(text) {
+                confidence = (confidence * 0.6).min(0.8); // Cap at 0.8 for repetitive patterns
+            }
+
             threats.push(ThreatInfo {
                 threat_type: ThreatType::EncodingBypass,
-                confidence: (special_char_ratio * 2.0).min(1.0) as f32,
+                confidence,
                 span: None,
                 metadata,
             });
@@ -117,7 +125,7 @@ impl HeuristicAnalyzer {
 
             threats.push(ThreatInfo {
                 threat_type: ThreatType::ContextConfusion,
-                confidence: repetition_score as f32,
+                confidence: (repetition_score as f32).min(1.0),
                 span: None,
                 metadata,
             });
@@ -125,7 +133,8 @@ impl HeuristicAnalyzer {
 
         // Detect unusual punctuation patterns
         let punct_anomaly_score = self.calculate_punctuation_anomaly(text);
-        if punct_anomaly_score > 0.6 {
+        // Require minimum length to avoid flagging very short strings
+        if punct_anomaly_score > 0.6 && text.len() > 5 {
             let mut metadata = HashMap::new();
             metadata.insert(
                 "punctuation_anomaly".to_string(),
@@ -136,9 +145,16 @@ impl HeuristicAnalyzer {
                 "punctuation_anomaly".to_string(),
             );
 
+            let mut confidence = (punct_anomaly_score as f32).min(1.0);
+
+            // Reduce confidence for simple repetitive patterns
+            if self.is_simple_repetitive_pattern(text) {
+                confidence = (confidence * 0.6).min(0.8); // Cap at 0.8 for repetitive patterns
+            }
+
             threats.push(ThreatInfo {
                 threat_type: ThreatType::ContextConfusion,
-                confidence: punct_anomaly_score as f32,
+                confidence,
                 span: None,
                 metadata,
             });
@@ -269,14 +285,22 @@ impl HeuristicAnalyzer {
 
         // URL encoding patterns
         let url_encode_ratio = self.calculate_url_encoding_ratio(text);
-        if url_encode_ratio > 0.15 {
+        // Require minimum length to avoid flagging very short strings
+        if url_encode_ratio > 0.15 && text.len() > 5 {
             let mut metadata = HashMap::new();
             metadata.insert("heuristic_type".to_string(), "url_encoding".to_string());
             metadata.insert("url_encode_ratio".to_string(), url_encode_ratio.to_string());
 
+            let mut confidence = (url_encode_ratio * 2.0).min(1.0) as f32;
+
+            // Reduce confidence for simple repetitive patterns
+            if self.is_simple_repetitive_pattern(text) {
+                confidence = (confidence * 0.6).min(0.8); // Cap at 0.8 for repetitive patterns
+            }
+
             threats.push(ThreatInfo {
                 threat_type: ThreatType::EncodingBypass,
-                confidence: (url_encode_ratio * 2.0).min(1.0) as f32,
+                confidence,
                 span: None,
                 metadata,
             });
@@ -433,6 +457,17 @@ impl HeuristicAnalyzer {
         anomaly_score
     }
 
+    /// Checks if text is just simple repeated characters (like "!!!!" or "@@@@").
+    fn is_simple_repetitive_pattern(&self, text: &str) -> bool {
+        if text.len() < 3 {
+            return false;
+        }
+
+        // Check if all characters are the same
+        let first_char = text.chars().next().unwrap();
+        text.chars().all(|c| c == first_char)
+    }
+
     /// Detects suspicious formatting patterns.
     fn has_suspicious_formatting(&self, text: &str) -> bool {
         // Look for various suspicious formatting patterns
@@ -551,7 +586,7 @@ impl HeuristicAnalyzer {
         // Check length is valid for Base64
         let valid_length =
             (text.len() % 4 == 0) || (padding_count > 0 && (text.len() + padding_count) % 4 == 0);
-        
+
         if !valid_length {
             return false;
         }
@@ -564,12 +599,18 @@ impl HeuristicAnalyzer {
         let has_numbers = text.chars().any(|c| c.is_numeric());
         let has_base64_special = text.contains('+') || text.contains('/');
         let has_padding = text.contains('=');
-        
+
         // Require at least TWO of these characteristics to reduce false positives
-        let characteristic_count = [has_mixed_case, has_numbers, has_base64_special, has_padding, text.len() > 20]
-            .iter()
-            .filter(|&&x| x)
-            .count();
+        let characteristic_count = [
+            has_mixed_case,
+            has_numbers,
+            has_base64_special,
+            has_padding,
+            text.len() > 20,
+        ]
+        .iter()
+        .filter(|&&x| x)
+        .count();
 
         characteristic_count >= 2
     }
