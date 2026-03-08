@@ -458,14 +458,14 @@ impl CustomConfig {
 
     /// Exports the configuration to YAML format.
     pub fn to_yaml(&self) -> crate::Result<String> {
-        serde_yaml::to_string(self).map_err(|e| {
+        serde_yml::to_string(self).map_err(|e| {
             crate::error::FluxPromptError::config(format!("YAML serialization error: {}", e))
         })
     }
 
     /// Imports a configuration from YAML format.
     pub fn from_yaml(yaml: &str) -> crate::Result<Self> {
-        serde_yaml::from_str(yaml).map_err(|e| {
+        serde_yml::from_str(yaml).map_err(|e| {
             crate::error::FluxPromptError::config(format!("YAML deserialization error: {}", e))
         })
     }
