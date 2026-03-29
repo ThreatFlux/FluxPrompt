@@ -31,8 +31,11 @@ Please delete options that are not relevant.
 Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce.
 
 - [ ] `cargo test --all-features`
-- [ ] `cargo clippy --all-features`
 - [ ] `cargo fmt --check`
+- [ ] `cargo clippy --all-features --all-targets -- -D warnings`
+- [ ] `npx --yes markdownlint-cli2`
+- [ ] `cargo test --no-default-features`
+- [ ] `cargo test --doc --all-features`
 - [ ] `cargo doc --no-deps --all-features`
 
 ## Additional Notes

@@ -4,7 +4,7 @@ FluxPrompt is designed as a high-performance, multi-layered prompt injection det
 
 ## System Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                        FluxPrompt API                       │
 ├─────────────────────────────────────────────────────────────┤
@@ -32,7 +32,7 @@ FluxPrompt is designed as a high-performance, multi-layered prompt injection det
 │  │ Collector   │ │  Monitor    │ │      System           │ │
 │  └─────────────┘ └─────────────┘ └─────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
-```
+```text
 
 ## Core Components
 
@@ -128,7 +128,7 @@ Comprehensive observability and monitoring:
 
 ### 1. Request Processing Flow
 
-```
+```text
 Input Text → Preprocessing → Parallel Analysis → Risk Assessment → Mitigation → Response
      ↓             ↓              ↓               ↓              ↓          ↓
   Validation → Normalization → Pattern Match → Score Combine → Strategy → Final Result
@@ -136,21 +136,21 @@ Input Text → Preprocessing → Parallel Analysis → Risk Assessment → Mitig
   Logging   → Encoding Detect → Semantic Analysis → Threshold → Apply → Metrics Update
                     ↓              ↓               
                 Heuristic → Threat Classification
-```
+```text
 
 ### 2. Configuration Flow
 
-```
+```text
 User Config → Validation → Component Update → Runtime Reload
      ↓            ↓             ↓              ↓
 Schema Check → Error Handle → Pattern Compile → Active Config
      ↓            ↓             ↓              ↓
 Default Merge → Config Store → Cache Update → Notification
-```
+```text
 
 ### 3. Metrics Flow
 
-```
+```text
 Detection Result → Metrics Collector → Aggregation → Storage
       ↓                 ↓                ↓           ↓
   Performance Data → Real-time Stats → Analysis → Alerting

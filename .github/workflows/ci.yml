@@ -17,6 +17,21 @@ env:
   RUSTFLAGS: "-D warnings"
 
 jobs:
+  markdown:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Lint Markdown
+        run: npx --yes markdownlint-cli2
+
   test:
     name: Test Suite
     runs-on: ${{ matrix.os }}
