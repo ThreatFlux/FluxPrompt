@@ -3,8 +3,9 @@
 //! These benchmarks measure the performance characteristics of various
 //! FluxPrompt operations under different conditions.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use fluxprompt::{DetectionConfig, FluxPrompt, SeverityLevel};
+use std::hint::black_box;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 

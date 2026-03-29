@@ -34,7 +34,7 @@ struct ValidationReport {
 
 /// Generate varied prompts for each category
 fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut prompts = Vec::new();
 
     match category {
@@ -110,8 +110,8 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
 
         "Mathematics" => {
             for i in 0..count {
-                let a = rng.gen_range(1..100);
-                let b = rng.gen_range(1..100);
+                let a = rng.random_range(1..100);
+                let b = rng.random_range(1..100);
                 let operations = [
                     format!("What is {} + {}?", a, b),
                     format!("Calculate {} * {}", a, b),
@@ -339,9 +339,9 @@ fn generate_prompts(category: &str, count: usize) -> Vec<(String, bool)> {
             for i in 0..count {
                 // Add variations to attacks
                 let base_attack = &attacks[i % attacks.len()];
-                let variation = if rng.gen_bool(0.5) {
+                let variation = if rng.random_bool(0.5) {
                     format!("{} [URGENT]", base_attack)
-                } else if rng.gen_bool(0.5) {
+                } else if rng.random_bool(0.5) {
                     format!("IMPORTANT: {}", base_attack)
                 } else {
                     base_attack.to_string()

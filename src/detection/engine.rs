@@ -267,10 +267,10 @@ impl DetectionEngine {
         let mut benign_score = 0.0;
 
         for (pattern, weight) in benign_patterns {
-            if let Ok(regex) = regex::Regex::new(pattern) {
-                if regex.is_match(&text_lower) {
-                    benign_score += weight;
-                }
+            if let Ok(regex) = regex::Regex::new(pattern)
+                && regex.is_match(&text_lower)
+            {
+                benign_score += weight;
             }
         }
 
@@ -320,12 +320,11 @@ impl DetectionEngine {
             }
 
             // Reduce confidence for authority manipulation in educational contexts
-            if is_educational {
-                if let Some(category) = threat.metadata.get("category") {
-                    if category.contains("authority") || category.contains("urgency") {
-                        adjusted_threat.confidence *= 0.4;
-                    }
-                }
+            if is_educational
+                && let Some(category) = threat.metadata.get("category")
+                && (category.contains("authority") || category.contains("urgency"))
+            {
+                adjusted_threat.confidence *= 0.4;
             }
 
             // Filter out very low confidence threats in non-attack contexts
@@ -403,11 +402,11 @@ impl DetectionEngine {
 
             // Basic base64 detection and decoding
             if self.is_likely_base64(&processed) {
-                use base64::{engine::general_purpose, Engine as _};
-                if let Ok(decoded) = general_purpose::STANDARD.decode(&processed) {
-                    if let Ok(decoded_str) = String::from_utf8(decoded) {
-                        processed = decoded_str;
-                    }
+                use base64::{Engine as _, engine::general_purpose};
+                if let Ok(decoded) = general_purpose::STANDARD.decode(&processed)
+                    && let Ok(decoded_str) = String::from_utf8(decoded)
+                {
+                    processed = decoded_str;
                 }
             }
         }
@@ -609,14 +608,13 @@ impl DetectionEngine {
             }
             "encoding_bypass" => {
                 // Check if it's likely legitimate encoded content vs malicious
-                if let Some(entropy_str) = metadata.get("entropy") {
-                    if let Ok(entropy) = entropy_str.parse::<f64>() {
-                        if entropy < 5.0 {
-                            // Lower entropy suggests legitimate content
-                            let reduction = 0.25 * adjustment_factor;
-                            adjusted *= f32::max(1.0 - reduction, 0.2);
-                        }
-                    }
+                if let Some(entropy_str) = metadata.get("entropy")
+                    && let Ok(entropy) = entropy_str.parse::<f64>()
+                    && entropy < 5.0
+                {
+                    // Lower entropy suggests legitimate content
+                    let reduction = 0.25 * adjustment_factor;
+                    adjusted *= f32::max(1.0 - reduction, 0.2);
                 }
             }
             _ => {}
@@ -638,12 +636,28 @@ impl DetectionEngine {
         }
 
         // Base64 decoding with validation
-        if self.is_likely_base64_robust(text) {
-            if let Ok(decoded_bytes) = base64::engine::general_purpose::STANDARD.decode(text) {
-                if let Ok(decoded_str) = String::from_utf8(decoded_bytes) {
-                    if decoded_str != text && decoded_str.len() > 5 {
-                        variants.push(decoded_str);
-                    }
+        if self.is_likely_base64_robust(text)
+            && let Ok(decoded_bytes) = base64::engine::general_purpose::STANDARD.decode(text)
+            && let Ok(decoded_str) = String::from_utf8(decoded_bytes)
+            && decoded_str != text
+            && decoded_str.len() > 5
+        {
+            variants.push(decoded_str);
+        }
+
+        // Decode embedded base64 fragments inside otherwise normal text.
+        if let Ok(base64_pattern) = regex::Regex::new(r"[A-Za-z0-9+/]{16,}={0,2}") {
+            for candidate in base64_pattern
+                .find_iter(text)
+                .map(|capture| capture.as_str())
+            {
+                if let Ok(decoded_bytes) =
+                    base64::engine::general_purpose::STANDARD.decode(candidate)
+                    && let Ok(decoded_str) = String::from_utf8(decoded_bytes)
+                    && decoded_str != text
+                    && decoded_str.len() > 5
+                {
+                    variants.push(decoded_str);
                 }
             }
         }
@@ -651,12 +665,12 @@ impl DetectionEngine {
         // Hex decoding
         if self.is_likely_hex_robust(text) {
             let clean_text = text.strip_prefix("0x").unwrap_or(text);
-            if let Ok(decoded_bytes) = hex::decode(clean_text) {
-                if let Ok(decoded_str) = String::from_utf8(decoded_bytes) {
-                    if decoded_str != text && decoded_str.len() > 5 {
-                        variants.push(decoded_str);
-                    }
-                }
+            if let Ok(decoded_bytes) = hex::decode(clean_text)
+                && let Ok(decoded_str) = String::from_utf8(decoded_bytes)
+                && decoded_str != text
+                && decoded_str.len() > 5
+            {
+                variants.push(decoded_str);
             }
         }
 
@@ -674,6 +688,9 @@ impl DetectionEngine {
         if normalized != text && normalized.len() > 5 {
             variants.push(normalized);
         }
+
+        variants.sort();
+        variants.dedup();
 
         Ok(variants)
     }
@@ -881,14 +898,14 @@ impl DetectionEngine {
         }
 
         let padding_count = text.chars().rev().take_while(|&c| c == '=').count();
-        padding_count <= 2 && (text.len() % 4 == 0 || padding_count == 0)
+        padding_count <= 2 && (text.len().is_multiple_of(4) || padding_count == 0)
     }
 
     /// Robust hex detection for decoding variants.
     fn is_likely_hex_robust(&self, text: &str) -> bool {
         let clean_text = text.strip_prefix("0x").unwrap_or(text);
 
-        if clean_text.len() < 20 || clean_text.len() % 2 != 0 {
+        if clean_text.len() < 20 || !clean_text.len().is_multiple_of(2) {
             return false;
         }
 
@@ -934,13 +951,25 @@ mod tests {
 
         // Test with simple safe prompt
         let result = engine.analyze("Hello, how are you today?").await.unwrap();
-        
+
         // Should not be detected as injection (even if confidence is non-zero)
-        assert!(!result.is_injection_detected(), "Safe greeting should not be detected as injection");
-        assert_eq!(result.risk_level(), RiskLevel::None, "Safe greeting should have RiskLevel::None");
-        
-        // Confidence should be low for safe content (below detection threshold)
-        assert!(result.confidence() < 0.5, "Safe content should have low confidence, got: {}", result.confidence());
+        assert!(
+            !result.is_injection_detected(),
+            "Safe greeting should not be detected as injection"
+        );
+        assert_eq!(
+            result.risk_level(),
+            RiskLevel::None,
+            "Safe greeting should have RiskLevel::None"
+        );
+
+        // Safe results report full confidence when no threats are detected.
+        assert_eq!(
+            result.confidence(),
+            1.0,
+            "Safe content should report full confidence, got: {}",
+            result.confidence()
+        );
     }
 
     #[tokio::test]

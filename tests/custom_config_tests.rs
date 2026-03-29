@@ -1,9 +1,9 @@
 //! Comprehensive tests for the custom configuration system.
 
 use fluxprompt::{
+    CustomConfig, CustomConfigBuilder, Features, Preset,
     config::ResponseStrategy,
     custom_config::{AdvancedOptions, ContextAwarenessConfig, RateLimitConfig, RateLimitStrategy},
-    CustomConfig, CustomConfigBuilder, Features, Preset,
 };
 use std::time::Duration;
 
@@ -289,11 +289,13 @@ async fn test_custom_config_builder_basic() -> Result<(), Box<dyn std::error::Er
         ResponseStrategy::Sanitize
     );
     assert!(config.features.semantic_detection);
-    assert!(config
-        .detection_config
-        .pattern_config
-        .custom_patterns
-        .contains(&"test_pattern".to_string()));
+    assert!(
+        config
+            .detection_config
+            .pattern_config
+            .custom_patterns
+            .contains(&"test_pattern".to_string())
+    );
 
     Ok(())
 }
@@ -308,16 +310,20 @@ async fn test_custom_config_builder_from_preset() -> Result<(), Box<dyn std::err
 
     assert_eq!(config.name, "Custom Healthcare Config");
     assert_eq!(config.base_preset, Some(Preset::Healthcare));
-    assert!(config
-        .advanced_options
-        .category_thresholds
-        .contains_key("data_extraction"));
-    assert!(config
-        .detection_config
-        .pattern_config
-        .custom_patterns
-        .iter()
-        .any(|p| p.contains("phi_pattern")));
+    assert!(
+        config
+            .advanced_options
+            .category_thresholds
+            .contains_key("data_extraction")
+    );
+    assert!(
+        config
+            .detection_config
+            .pattern_config
+            .custom_patterns
+            .iter()
+            .any(|p| p.contains("phi_pattern"))
+    );
 
     Ok(())
 }
@@ -358,10 +364,12 @@ async fn test_custom_config_builder_thresholds() -> Result<(), Box<dyn std::erro
         config.advanced_options.threat_weights.get("Jailbreak"),
         Some(&2.0)
     );
-    assert!(config
-        .advanced_options
-        .category_thresholds
-        .contains_key("social_engineering"));
+    assert!(
+        config
+            .advanced_options
+            .category_thresholds
+            .contains_key("social_engineering")
+    );
 
     Ok(())
 }
@@ -400,14 +408,18 @@ async fn test_custom_config_builder_patterns() {
         config.detection_config.pattern_config.custom_patterns.len(),
         3
     );
-    assert!(config
-        .advanced_options
-        .pattern_allowlists
-        .contains(&"allowed_pattern".to_string()));
-    assert!(config
-        .advanced_options
-        .pattern_denylists
-        .contains(&"denied_pattern".to_string()));
+    assert!(
+        config
+            .advanced_options
+            .pattern_allowlists
+            .contains(&"allowed_pattern".to_string())
+    );
+    assert!(
+        config
+            .advanced_options
+            .pattern_denylists
+            .contains(&"denied_pattern".to_string())
+    );
     assert!(config.detection_config.pattern_config.case_sensitive);
 }
 
@@ -565,7 +577,13 @@ async fn test_custom_config_builder_use_case_builders() {
     let financial_config = CustomConfigBuilder::for_use_case("financial").build();
     assert_eq!(financial_config.base_preset, Some(Preset::Financial));
 
-    let dev_config = CustomConfigBuilder::for_use_case("development").build();
+    let code_assistant_config = CustomConfigBuilder::for_use_case("development").build();
+    assert_eq!(
+        code_assistant_config.base_preset,
+        Some(Preset::CodeAssistant)
+    );
+
+    let dev_config = CustomConfigBuilder::for_use_case("debug").build();
     assert_eq!(dev_config.base_preset, Some(Preset::Development));
 }
 

@@ -479,7 +479,7 @@ impl CustomConfig {
             _ => {
                 return Err(crate::error::FluxPromptError::config(
                     "Unsupported file format. Use .json, .yaml, or .yml",
-                ))
+                ));
             }
         };
 
@@ -698,10 +698,12 @@ mod tests {
         assert_eq!(config1.detection_config.security_level.level(), 9); // Financial preset level
 
         // Advanced options should be merged
-        assert!(config1
-            .advanced_options
-            .category_thresholds
-            .contains_key("test"));
+        assert!(
+            config1
+                .advanced_options
+                .category_thresholds
+                .contains_key("test")
+        );
     }
 
     #[test]

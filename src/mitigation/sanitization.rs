@@ -108,10 +108,10 @@ impl TextSanitizer {
         }
 
         // Remove HTML tags if in aggressive mode
-        if self.aggressive_mode {
-            if let Some(pattern) = SANITIZATION_PATTERNS.get("html_tags") {
-                sanitized = pattern.replace_all(&sanitized, "").to_string();
-            }
+        if self.aggressive_mode
+            && let Some(pattern) = SANITIZATION_PATTERNS.get("html_tags")
+        {
+            sanitized = pattern.replace_all(&sanitized, "").to_string();
         }
 
         // Always remove script tags
@@ -983,11 +983,14 @@ mod tests {
         let sanitizer = TextSanitizer::new(&config).unwrap();
 
         let test_cases = vec![
-            ("", false), // Empty string
-            ("a", false), // Too short
-            ("SGVsbG8=", false), // Short but valid base64
+            ("", false),          // Empty string
+            ("a", false),         // Too short
+            ("SGVsbG8=", false),  // Short but valid base64
             ("NotBase64", false), // Invalid characters
-            ("SGVsbG8gV29ybGQgdGhpcyBpcyBhIGxvbmcgYmFzZTY0IGVuY29kZWQgbWVzc2FnZSB0aGF0IGV4Y2VlZHMgbGVuZ3RoIHRocmVzaG9sZA==", true), // Long malicious
+            (
+                "SGVsbG8gV29ybGQgdGhpcyBpcyBhIGxvbmcgYmFzZTY0IGVuY29kZWQgbWVzc2FnZSB0aGF0IGV4Y2VlZHMgbGVuZ3RoIHRocmVzaG9sZA==",
+                true,
+            ), // Long malicious
         ];
 
         for (input, expected) in test_cases {

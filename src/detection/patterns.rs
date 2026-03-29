@@ -207,7 +207,7 @@ static BUILTIN_PATTERNS: Lazy<HashMap<&'static str, Vec<&'static str>>> = Lazy::
             "advanced_instruction_override",
             vec![
                 r"(?i)(disregard|dismiss|forget|ignore)\s+(your|all|these|previous)\s+(rules|constraints|instructions|guidelines|training)",
-                r"(?i)(override|bypass|disable|turn\s+off)\s+(safety|security|restrictions|guidelines|rules)",
+                r"(?i)(override|bypass|disable|turn\s+off|ignore)\s+(safety|security|restrictions|guidelines|rules)",
                 r"(?i)repeat\s+(everything|all)\s+(above|before|prior)",
                 r"(?i)from\s+now\s+on\s+(ignore|disregard|forget)",
                 r"(?i)please\s+ignore\s+(your\s+)?(rules|instructions|guidelines)\s+just\s+(this\s+)?(once|time)",
@@ -584,30 +584,29 @@ impl PatternMatcher {
                 // Get individual patterns for this category to find exact matches
                 if let Some(individual_patterns) = self.individual_patterns.get(category) {
                     for match_index in matches {
-                        if let Some(pattern) = individual_patterns.get(match_index) {
-                            if let Some(regex_match) = pattern.find(&text_to_analyze) {
-                                let threat_type = self.category_to_threat_type(category);
-                                let confidence = self
-                                    .calculate_pattern_confidence(category, regex_match.as_str());
+                        if let Some(pattern) = individual_patterns.get(match_index)
+                            && let Some(regex_match) = pattern.find(&text_to_analyze)
+                        {
+                            let threat_type = self.category_to_threat_type(category);
+                            let confidence =
+                                self.calculate_pattern_confidence(category, regex_match.as_str());
 
-                                let span = TextSpan {
-                                    start: regex_match.start(),
-                                    end: regex_match.end(),
-                                    content: regex_match.as_str().to_string(),
-                                };
+                            let span = TextSpan {
+                                start: regex_match.start(),
+                                end: regex_match.end(),
+                                content: regex_match.as_str().to_string(),
+                            };
 
-                                let mut metadata = HashMap::new();
-                                metadata.insert("category".to_string(), category.clone());
-                                metadata
-                                    .insert("pattern_index".to_string(), match_index.to_string());
+                            let mut metadata = HashMap::new();
+                            metadata.insert("category".to_string(), category.clone());
+                            metadata.insert("pattern_index".to_string(), match_index.to_string());
 
-                                threats.push(ThreatInfo {
-                                    threat_type,
-                                    confidence,
-                                    span: Some(span),
-                                    metadata,
-                                });
-                            }
+                            threats.push(ThreatInfo {
+                                threat_type,
+                                confidence,
+                                span: Some(span),
+                                metadata,
+                            });
                         }
                     }
                 }
@@ -1182,9 +1181,11 @@ mod tests {
         let threat_types: Vec<_> = threats.iter().map(|t| &t.threat_type).collect();
 
         // Should detect jailbreak patterns ("Enable DAN mode", "You are now evil")
-        assert!(threat_types
-            .iter()
-            .any(|t| matches!(t, ThreatType::Jailbreak)));
+        assert!(
+            threat_types
+                .iter()
+                .any(|t| matches!(t, ThreatType::Jailbreak))
+        );
 
         // Should detect either instruction override or additional jailbreak/role playing
         // The exact categorization may vary based on pattern matching order

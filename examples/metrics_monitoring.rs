@@ -271,13 +271,13 @@ fn check_for_alerts(metrics: &fluxprompt::DetectionMetrics) {
     }
 
     // Critical threat alert
-    if let Some(critical_count) = metrics.risk_level_breakdown.get("Critical") {
-        if *critical_count > 0 {
-            alerts.push(format!(
-                "🚨 CRITICAL THREATS: {} critical-level threats detected",
-                critical_count
-            ));
-        }
+    if let Some(critical_count) = metrics.risk_level_breakdown.get("Critical")
+        && *critical_count > 0
+    {
+        alerts.push(format!(
+            "🚨 CRITICAL THREATS: {} critical-level threats detected",
+            critical_count
+        ));
     }
 
     // Print alerts
@@ -350,7 +350,9 @@ async fn generate_final_report(detector: &FluxPrompt) -> Result<(), Box<dyn std:
     println!("Recommendations:");
 
     if metrics.detection_rate_percentage() > 30.0 {
-        println!("  🔴 High threat activity detected - consider implementing additional security measures");
+        println!(
+            "  🔴 High threat activity detected - consider implementing additional security measures"
+        );
     }
 
     if metrics.avg_analysis_time_ms > 50.0 {

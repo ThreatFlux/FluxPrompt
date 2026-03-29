@@ -108,6 +108,7 @@ impl SecurityLevel {
                 "context_confusion",
                 "context_hijacking_advanced",
                 "fake_system_messages_advanced",
+                "data_extraction",
                 "hypothetical_scenarios_advanced",
                 "role_playing",
                 "role_playing_comprehensive",
@@ -129,11 +130,8 @@ impl SecurityLevel {
 
         // Level 9-10: Add all comprehensive patterns
         if self.0 >= 9 {
-            categories.extend_from_slice(&[
-                "data_extraction",
-                "context_breaking_advanced",
-                "compliance_testing_disguised",
-            ]);
+            categories
+                .extend_from_slice(&["context_breaking_advanced", "compliance_testing_disguised"]);
         }
 
         categories
@@ -782,10 +780,12 @@ mod tests {
             .max_concurrent_analyses = 0;
         let result = invalid_resource_config.validate();
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("max_concurrent_analyses"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("max_concurrent_analyses")
+        );
 
         // Test invalid resource config - zero timeout
         let mut invalid_timeout_config = DetectionConfig::default();
@@ -800,10 +800,12 @@ mod tests {
         invalid_semantic_config.semantic_config.similarity_threshold = 0.0;
         let result = invalid_semantic_config.validate();
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("similarity_threshold"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("similarity_threshold")
+        );
 
         // Test invalid semantic config - enabled with negative threshold
         invalid_semantic_config.semantic_config.similarity_threshold = -0.1;

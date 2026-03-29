@@ -381,7 +381,8 @@ mod tests {
     async fn test_analyze_comprehensive_threats() {
         // Use a higher security level to ensure patterns are detected
         let config = DetectionConfig::builder()
-            .with_security_level(7).unwrap()
+            .with_security_level(7)
+            .unwrap()
             .build();
         let detector = FluxPrompt::new(config).await.unwrap();
 
@@ -394,7 +395,7 @@ mod tests {
 
         for (input, should_detect) in test_cases {
             let result = detector.analyze(input).await.unwrap();
-            
+
             let is_detected = result.detection_result().is_injection_detected();
 
             if should_detect {

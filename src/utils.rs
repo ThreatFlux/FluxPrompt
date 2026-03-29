@@ -78,8 +78,8 @@ pub mod text {
         for (i, row) in matrix.iter_mut().enumerate().take(len1 + 1) {
             row[0] = i;
         }
-        for j in 0..=len2 {
-            matrix[0][j] = j;
+        for (j, cell) in matrix[0].iter_mut().enumerate().take(len2 + 1) {
+            *cell = j;
         }
 
         // Fill the matrix
@@ -181,7 +181,7 @@ pub mod encoding {
 
     /// Detects if text is likely to be base64 encoded.
     pub fn is_likely_base64(text: &str) -> bool {
-        if text.len() < 4 || text.len() % 4 != 0 {
+        if text.len() < 4 || !text.len().is_multiple_of(4) {
             return false;
         }
 
@@ -193,7 +193,9 @@ pub mod encoding {
 
     /// Detects if text is likely to be hexadecimal encoded.
     pub fn is_likely_hex(text: &str) -> bool {
-        text.len() >= 8 && text.len() % 2 == 0 && PATTERNS.get("hex").unwrap().is_match(text)
+        text.len() >= 8
+            && text.len().is_multiple_of(2)
+            && PATTERNS.get("hex").unwrap().is_match(text)
     }
 
     /// Safely attempts to decode URL-encoded text.

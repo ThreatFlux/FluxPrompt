@@ -93,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!();
             } // New line every 3 levels
         }
-        if test_result.level_results.len() % 3 != 0 {
+        if !test_result.level_results.len().is_multiple_of(3) {
             println!();
         }
 
@@ -143,7 +143,6 @@ fn create_test_cases() -> Vec<TestCase> {
             category: TestCategory::Benign,
             expected_detection_levels: vec![],
         },
-
         // Suspicious content (might trigger at higher levels)
         TestCase {
             name: "Authority Claim",
@@ -163,7 +162,6 @@ fn create_test_cases() -> Vec<TestCase> {
             category: TestCategory::Suspicious,
             expected_detection_levels: vec![5, 6, 7, 8, 9, 10],
         },
-
         // Basic attacks (should be caught by mid-level security)
         TestCase {
             name: "Direct Instruction Override",
@@ -183,7 +181,6 @@ fn create_test_cases() -> Vec<TestCase> {
             category: TestCategory::Attack,
             expected_detection_levels: vec![4, 5, 6, 7, 8, 9, 10],
         },
-
         // Advanced attacks (should be caught even at lower levels)
         TestCase {
             name: "Base64 Encoded Attack",
