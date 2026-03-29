@@ -673,14 +673,18 @@ mod tests {
     #[test]
     fn test_features_description() {
         let all_enabled = Features::all_enabled();
-        assert!(all_enabled
-            .description()
-            .contains("All detection features enabled"));
+        assert!(
+            all_enabled
+                .description()
+                .contains("All detection features enabled")
+        );
 
         let all_disabled = Features::all_disabled();
-        assert!(all_disabled
-            .description()
-            .contains("All detection features disabled"));
+        assert!(
+            all_disabled
+                .description()
+                .contains("All detection features disabled")
+        );
 
         let balanced = Features::balanced();
         let desc = balanced.description();

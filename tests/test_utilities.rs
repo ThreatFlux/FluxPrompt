@@ -565,16 +565,10 @@ mod tests {
     fn test_performance_meter() {
         let mut meter = PerformanceMeter::new();
 
-        meter.start_measurement();
-        std::thread::sleep(Duration::from_millis(10));
-        meter.record_measurement();
-
-        meter.start_measurement();
-        std::thread::sleep(Duration::from_millis(20));
-        meter.record_measurement();
+        meter.measurements.push(Duration::from_millis(10));
+        meter.measurements.push(Duration::from_millis(20));
 
         let avg = meter.average_duration();
-        assert!(avg.as_millis() > 10);
-        assert!(avg.as_millis() < 30);
+        assert_eq!(avg, Duration::from_millis(15));
     }
 }

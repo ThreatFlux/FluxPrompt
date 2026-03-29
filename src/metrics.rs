@@ -242,7 +242,7 @@ impl MetricsCollector {
         let cutoff = current_timestamp.saturating_sub(3600 * 1000); // 1 hour in milliseconds
 
         // Only cleanup every 1000 entries to avoid constant overhead
-        if current_timestamp % 1000 == 0 {
+        if current_timestamp.is_multiple_of(1000) {
             self.analysis_times
                 .retain(|&timestamp, _| timestamp > cutoff);
             self.confidence_scores

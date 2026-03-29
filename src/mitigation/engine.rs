@@ -82,8 +82,7 @@ impl MitigationEngine {
 
         format!(
             "Request blocked due to security policy. Detected {} potential threat(s) with risk level: {:?}. Please revise your request and try again.",
-            threat_count,
-            risk_level
+            threat_count, risk_level
         )
     }
 
@@ -99,7 +98,11 @@ impl MitigationEngine {
 
         format!(
             "Security Warning: Potential prompt injection detected. Threat types: {}. Risk level: {:?}. Please be cautious with your request.",
-            unique_threats.into_iter().cloned().collect::<Vec<_>>().join(", "),
+            unique_threats
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", "),
             detection_result.risk_level()
         )
     }

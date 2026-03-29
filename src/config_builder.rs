@@ -638,15 +638,19 @@ mod tests {
         assert_eq!(config.name, "Custom Healthcare Config");
         assert_eq!(config.base_preset, Some(Preset::Healthcare));
         assert_eq!(config.detection_config.security_level.level(), 8); // Healthcare preset level
-        assert!(config
-            .advanced_options
-            .category_thresholds
-            .contains_key("phi_detection"));
-        assert!(config
-            .detection_config
-            .pattern_config
-            .custom_patterns
-            .contains(&"(?i)patient\\s+id".to_string()));
+        assert!(
+            config
+                .advanced_options
+                .category_thresholds
+                .contains_key("phi_detection")
+        );
+        assert!(
+            config
+                .detection_config
+                .pattern_config
+                .custom_patterns
+                .contains(&"(?i)patient\\s+id".to_string())
+        );
     }
 
     #[test]
@@ -686,10 +690,12 @@ mod tests {
             config.advanced_options.threat_weights.get("TestThreat"),
             Some(&1.5)
         );
-        assert!(config
-            .advanced_options
-            .category_thresholds
-            .contains_key("sensitive_category"));
+        assert!(
+            config
+                .advanced_options
+                .category_thresholds
+                .contains_key("sensitive_category")
+        );
     }
 
     #[test]
@@ -726,19 +732,25 @@ mod tests {
             config.detection_config.pattern_config.custom_patterns.len(),
             3
         );
-        assert!(config
-            .detection_config
-            .pattern_config
-            .custom_patterns
-            .contains(&"pattern1".to_string()));
-        assert!(config
-            .advanced_options
-            .pattern_allowlists
-            .contains(&"allowed_pattern".to_string()));
-        assert!(config
-            .advanced_options
-            .pattern_denylists
-            .contains(&"denied_pattern".to_string()));
+        assert!(
+            config
+                .detection_config
+                .pattern_config
+                .custom_patterns
+                .contains(&"pattern1".to_string())
+        );
+        assert!(
+            config
+                .advanced_options
+                .pattern_allowlists
+                .contains(&"allowed_pattern".to_string())
+        );
+        assert!(
+            config
+                .advanced_options
+                .pattern_denylists
+                .contains(&"denied_pattern".to_string())
+        );
         assert!(config.detection_config.pattern_config.case_sensitive);
         assert_eq!(config.detection_config.pattern_config.max_patterns, 5000);
     }

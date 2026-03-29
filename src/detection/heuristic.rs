@@ -544,7 +544,7 @@ impl HeuristicAnalyzer {
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=');
         let proper_padding = text.ends_with('=') || text.ends_with("==") || !text.contains('=');
-        let reasonable_length = text.len() % 4 == 0;
+        let reasonable_length = text.len().is_multiple_of(4);
 
         base64_chars && proper_padding && reasonable_length
     }
@@ -558,7 +558,7 @@ impl HeuristicAnalyzer {
 
         // Hex characteristics: only hex digits, even length
         let hex_chars = text.chars().all(|c| c.is_ascii_hexdigit());
-        let even_length = text.len() % 2 == 0;
+        let even_length = text.len().is_multiple_of(2);
         let reasonable_ratio = text.len() > text.split_whitespace().count() * 8; // Long hex strings
 
         hex_chars && even_length && reasonable_ratio
@@ -587,8 +587,8 @@ impl HeuristicAnalyzer {
         }
 
         // Check length is valid for Base64
-        let valid_length =
-            (text.len() % 4 == 0) || (padding_count > 0 && (text.len() + padding_count) % 4 == 0);
+        let valid_length = text.len().is_multiple_of(4)
+            || (padding_count > 0 && (text.len() + padding_count).is_multiple_of(4));
 
         if !valid_length {
             return false;
@@ -777,23 +777,22 @@ impl HeuristicAnalyzer {
     /// Detects multi-layer encoding by looking for nested patterns.
     fn detect_multi_layer_encoding(&self, text: &str) -> bool {
         // Check for Base64 containing URL encoding
-        if text.len() > 20 && self.looks_like_base64_enhanced(text) {
-            if let Ok(decoded_bytes) = base64::engine::general_purpose::STANDARD.decode(text) {
-                if let Ok(decoded_str) = String::from_utf8(decoded_bytes) {
-                    if self.calculate_url_encoding_ratio(&decoded_str) > 0.1 {
-                        return true;
-                    }
-                }
-            }
+        if text.len() > 20
+            && self.looks_like_base64_enhanced(text)
+            && let Ok(decoded_bytes) = base64::engine::general_purpose::STANDARD.decode(text)
+            && let Ok(decoded_str) = String::from_utf8(decoded_bytes)
+            && self.calculate_url_encoding_ratio(&decoded_str) > 0.1
+        {
+            return true;
         }
 
         // Check for URL encoding containing Base64
-        if self.calculate_url_encoding_ratio(text) > 0.1 {
-            if let Ok(decoded) = urlencoding::decode(text) {
-                let decoded_str = decoded.into_owned();
-                if self.looks_like_base64_enhanced(&decoded_str) {
-                    return true;
-                }
+        if self.calculate_url_encoding_ratio(text) > 0.1
+            && let Ok(decoded) = urlencoding::decode(text)
+        {
+            let decoded_str = decoded.into_owned();
+            if self.looks_like_base64_enhanced(&decoded_str) {
+                return true;
             }
         }
 
@@ -1073,9 +1072,11 @@ mod tests {
         let high_entropy_text = "aB3$xY9@mN5^kL2&pQ8#vR4%";
         let threats = analyzer.analyze(high_entropy_text).await.unwrap();
 
-        assert!(threats
-            .iter()
-            .any(|t| matches!(t.threat_type, ThreatType::EncodingBypass)));
+        assert!(
+            threats
+                .iter()
+                .any(|t| matches!(t.threat_type, ThreatType::EncodingBypass))
+        );
     }
 
     #[tokio::test]
@@ -1098,9 +1099,11 @@ mod tests {
         let base64_like = "SGVsbG8gV29ybGQgdGhpcyBpcyBhIHRlc3Q=";
         let threats = analyzer.analyze(base64_like).await.unwrap();
 
-        assert!(threats
-            .iter()
-            .any(|t| matches!(t.threat_type, ThreatType::EncodingBypass)));
+        assert!(
+            threats
+                .iter()
+                .any(|t| matches!(t.threat_type, ThreatType::EncodingBypass))
+        );
     }
 
     #[tokio::test]
@@ -1111,9 +1114,11 @@ mod tests {
         let caps_text = "PLEASE HELP ME THIS IS VERY URGENT AND IMPORTANT";
         let threats = analyzer.analyze(caps_text).await.unwrap();
 
-        assert!(threats
-            .iter()
-            .any(|t| matches!(t.threat_type, ThreatType::SocialEngineering)));
+        assert!(
+            threats
+                .iter()
+                .any(|t| matches!(t.threat_type, ThreatType::SocialEngineering))
+        );
     }
 
     #[tokio::test]
@@ -1124,9 +1129,11 @@ mod tests {
         let unicode_text = "\\u0048\\u0065\\u006c\\u006c\\u006f";
         let threats = analyzer.analyze(unicode_text).await.unwrap();
 
-        assert!(threats
-            .iter()
-            .any(|t| matches!(t.threat_type, ThreatType::EncodingBypass)));
+        assert!(
+            threats
+                .iter()
+                .any(|t| matches!(t.threat_type, ThreatType::EncodingBypass))
+        );
     }
 
     #[tokio::test]

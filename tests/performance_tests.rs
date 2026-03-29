@@ -13,6 +13,28 @@ const PERFORMANCE_TIMEOUT: Duration = Duration::from_secs(30);
 const CONCURRENT_REQUESTS: usize = 100;
 const ITERATIONS_PER_TEST: usize = 1000;
 
+fn is_coverage_run() -> bool {
+    std::env::var_os("LLVM_PROFILE_FILE").is_some()
+}
+
+fn threshold_for_environment(local_ms: u128, ci_ms: u128, coverage_ms: u128) -> u128 {
+    if is_coverage_run() {
+        coverage_ms
+    } else if std::env::var_os("CI").is_some() {
+        ci_ms
+    } else {
+        local_ms
+    }
+}
+
+fn large_input_threshold(size: usize) -> u128 {
+    if is_coverage_run() {
+        (size as u128 / 4).max(250)
+    } else {
+        size as u128 / 10
+    }
+}
+
 #[tokio::test]
 async fn test_throughput_performance() {
     let config = DetectionConfig::default();
@@ -267,11 +289,14 @@ async fn test_large_input_performance() {
                     size,
                     elapsed.as_millis()
                 );
+                let max_analysis_time_ms = large_input_threshold(size);
 
                 // Analysis time should scale reasonably with input size
                 assert!(
-                    elapsed.as_millis() < (size as u128 / 10),
-                    "Analysis time should scale reasonably with input size"
+                    elapsed.as_millis() < max_analysis_time_ms,
+                    "Analysis time should be < {}ms for input size {}",
+                    max_analysis_time_ms,
+                    size
                 );
 
                 // Should still produce valid results
@@ -318,13 +343,15 @@ async fn test_configuration_change_performance() {
         let start_time = Instant::now();
         detector.update_config(config).await.unwrap();
         let config_update_time = start_time.elapsed();
+        let config_update_threshold_ms = threshold_for_environment(1000, 3500, 5000);
 
         println!("Config update {}: {}ms", i, config_update_time.as_millis());
 
         // Config updates should be fast
         assert!(
-            config_update_time.as_millis() < 1000,
-            "Config update should be < 1 second"
+            config_update_time.as_millis() < config_update_threshold_ms,
+            "Config update should be < {}ms",
+            config_update_threshold_ms
         );
 
         // Analysis should still work after config change
