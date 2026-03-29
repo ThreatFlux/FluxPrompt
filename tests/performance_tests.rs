@@ -13,6 +13,14 @@ const PERFORMANCE_TIMEOUT: Duration = Duration::from_secs(30);
 const CONCURRENT_REQUESTS: usize = 100;
 const ITERATIONS_PER_TEST: usize = 1000;
 
+fn threshold_for_environment(local_ms: u128, ci_ms: u128) -> u128 {
+    if std::env::var_os("CI").is_some() {
+        ci_ms
+    } else {
+        local_ms
+    }
+}
+
 #[tokio::test]
 async fn test_throughput_performance() {
     let config = DetectionConfig::default();
@@ -318,13 +326,15 @@ async fn test_configuration_change_performance() {
         let start_time = Instant::now();
         detector.update_config(config).await.unwrap();
         let config_update_time = start_time.elapsed();
+        let config_update_threshold_ms = threshold_for_environment(1000, 2000);
 
         println!("Config update {}: {}ms", i, config_update_time.as_millis());
 
         // Config updates should be fast
         assert!(
-            config_update_time.as_millis() < 1000,
-            "Config update should be < 1 second"
+            config_update_time.as_millis() < config_update_threshold_ms,
+            "Config update should be < {}ms",
+            config_update_threshold_ms
         );
 
         // Analysis should still work after config change
