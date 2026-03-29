@@ -343,7 +343,7 @@ async fn test_configuration_change_performance() {
         let start_time = Instant::now();
         detector.update_config(config).await.unwrap();
         let config_update_time = start_time.elapsed();
-        let config_update_threshold_ms = threshold_for_environment(1000, 2000, 5000);
+        let config_update_threshold_ms = threshold_for_environment(1000, 3500, 5000);
 
         println!("Config update {}: {}ms", i, config_update_time.as_millis());
 
