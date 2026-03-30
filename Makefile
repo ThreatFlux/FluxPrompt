@@ -1,14 +1,17 @@
 .PHONY: all clean build test fmt clippy doc audit security coverage bench check install-tools help \
         fmt-check test-no-features build-examples test-doc doc-check doc-links \
         deny outdated security-geiger security-supply-chain semver-check feature-test feature-test-full \
+        markdownlint \
         msrv msrv-install security-enhanced ci-local validate analyze examples release-prep dev
 
+RUST_MSRV := 1.94.0
+
 # Default target
-all: install-tools fmt clippy build test test-no-features build-examples test-doc doc-check doc-links audit security
+all: install-tools fmt clippy markdownlint build test test-no-features build-examples test-doc doc-check doc-links audit security
 	@echo "✅ All checks passed!"
 
 # CI simulation - matches GitHub Actions CI workflow
-ci: fmt-check clippy build test test-no-features build-examples test-doc doc-check
+ci: fmt-check clippy markdownlint build test test-no-features build-examples test-doc doc-check
 	@echo "✅ CI checks passed!"
 
 # Install required tools
@@ -36,6 +39,12 @@ fmt-check:
 	@echo "🔍 Checking code format..."
 	@cargo fmt -- --check
 	@echo "✅ Format check passed"
+
+# Lint Markdown documentation
+markdownlint:
+	@echo "📝 Linting Markdown..."
+	@npx --yes markdownlint-cli2
+	@echo "✅ Markdown lint passed"
 
 # Run clippy linter
 clippy:
@@ -146,20 +155,20 @@ bench:
 
 # Check MSRV (Minimum Supported Rust Version)
 msrv:
-	@echo "🦀 Checking MSRV (1.70.0)..."
-	@if rustup toolchain list | grep -q "1.70.0"; then \
-		cargo +1.70.0 check --all-features; \
+	@echo "🦀 Checking MSRV ($(RUST_MSRV))..."
+	@if rustup toolchain list | grep -q "$(RUST_MSRV)"; then \
+		cargo +$(RUST_MSRV) check --all-features; \
 	else \
-		echo "⚠️  MSRV toolchain 1.70.0 not installed. Installing..."; \
-		rustup toolchain install 1.70.0 --component rustfmt,clippy; \
-		cargo +1.70.0 check --all-features; \
+		echo "⚠️  MSRV toolchain $(RUST_MSRV) not installed. Installing..."; \
+		rustup toolchain install $(RUST_MSRV) --component rustfmt,clippy; \
+		cargo +$(RUST_MSRV) check --all-features; \
 	fi
 	@echo "✅ MSRV check complete"
 
 # Install MSRV toolchain if not present
 msrv-install:
-	@echo "🦀 Installing MSRV toolchain (1.70.0)..."
-	@rustup toolchain install 1.70.0 --component rustfmt,clippy
+	@echo "🦀 Installing MSRV toolchain ($(RUST_MSRV))..."
+	@rustup toolchain install $(RUST_MSRV) --component rustfmt,clippy
 	@echo "✅ MSRV toolchain installed"
 
 # Test feature combinations
@@ -209,7 +218,7 @@ security-enhanced: security security-supply-chain security-geiger semver-check
 	@echo "✅ Enhanced security analysis complete!"
 
 # CI-equivalent validation (matches GitHub Actions CI workflow)
-ci-local: fmt-check clippy build test test-no-features build-examples test-doc doc-check doc-links feature-test
+ci-local: fmt-check clippy markdownlint build test test-no-features build-examples test-doc doc-check doc-links feature-test
 	@echo "✅ Local CI validation complete!"
 
 # Full validation (everything - matches all CI/CD workflows)
@@ -235,6 +244,7 @@ help:
 	@echo "  make fmt          - Format code"
 	@echo "  make fmt-check    - Check formatting without modifying"
 	@echo "  make clippy       - Run clippy linter"
+	@echo "  make markdownlint - Lint Markdown files"
 	@echo "  make build        - Build the project"
 	@echo "  make test         - Run tests"
 	@echo "  make test-doc     - Test documentation examples"

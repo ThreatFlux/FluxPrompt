@@ -8,45 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial release of FluxPrompt SDK
-- Multi-layered detection system with pattern, semantic, and heuristic analysis
-- Configurable severity levels and response strategies
-- Built-in patterns for common prompt injection techniques
-- Custom pattern support for domain-specific threats
-- Comprehensive metrics collection and monitoring
-- Real-time configuration updates
-- Thread-safe concurrent processing
-- Flexible mitigation strategies
-- Extensive documentation and examples
-- Performance benchmarks and testing suite
-
-### Security
-- Input validation and sanitization
-- Encoding bypass detection
-- Rate limiting and resource management
-- Secure defaults for production deployment
-
-## [0.1.0] - 2024-MM-DD
-
-### Added
-- Core detection engine with pattern matching
-- Basic threat type classification
-- Simple configuration system
-- Fundamental metrics collection
-- Initial documentation
+- Root-level project governance docs with `SECURITY.md` and `CODE_OF_CONDUCT.md`
+- A documentation index in `docs/README.md`
+- Maintainer-facing FAQ and release runbook docs in `docs/FAQ.md` and `docs/RELEASING.md`
 
 ### Changed
-- N/A (Initial release)
+- Rewrote the root README to match the current ThreatFlux repository, examples, and Rust `1.94.0` baseline
+- Refreshed contributing guidance, issue and PR templates, and repository metadata URLs
+- Replaced the stale API reference with a stable overview that matches the current public entry points
 
-### Deprecated
-- N/A (Initial release)
+## [0.1.0] - 2026-03-29
 
-### Removed
-- N/A (Initial release)
+### Added
+- Async prompt-injection detection and mitigation APIs centered on `FluxPrompt`
+- Built-in coverage for instruction overrides, jailbreaks, encoding bypasses, context hijacking, social engineering, and data extraction patterns
+- Presets, custom configuration builders, metrics collection, examples, and architecture/security documentation
 
-### Fixed
-- N/A (Initial release)
+### Changed
+- Established Rust `1.94.0` and the Rust 2024 edition as the maintained baseline
+- Refreshed direct dependencies and CI/CD workflows to current stable versions
 
 ### Security
-- Basic input validation
-- Safe default configurations
+- Added input validation, mitigation, and deployment guidance for production use
