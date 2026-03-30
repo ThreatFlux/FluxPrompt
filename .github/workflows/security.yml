@@ -89,7 +89,7 @@ jobs:
           fetch-depth: 0
 
       - name: Check semver compliance
-        uses: obi1kenobi/cargo-semver-checks-action@v2
+        uses: obi1kenobi/cargo-semver-checks-action@5b298c9520f7096a4683c0bd981a7ac5a7e249ae # v2.8
         with:
           baseline-rev: ${{ github.event.pull_request.base.sha }}
           rust-toolchain: 1.94.0
