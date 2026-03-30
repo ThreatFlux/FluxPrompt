@@ -88,13 +88,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.94.0
-
-      - name: Install cargo-semver-checks
-        run: cargo install cargo-semver-checks
-
       - name: Check semver compliance
-        run: cargo semver-checks check-release
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+        with:
+          baseline-rev: ${{ github.event.pull_request.base.sha }}
+          rust-toolchain: 1.94.0
