@@ -39,7 +39,7 @@ A clear and concise description of what you expected to happen.
 ## Environment
 
 - OS: [e.g. Ubuntu 22.04, Windows 11, macOS 14]
-- Rust Version: [e.g. 1.94.0]
+- Rust Version: [e.g. 1.95.0]
 - FluxPrompt Version: [e.g. 0.1.0]
 
 ## Additional context

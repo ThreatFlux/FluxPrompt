@@ -5,7 +5,7 @@
 [![CI](https://github.com/ThreatFlux/FluxPrompt/actions/workflows/ci.yml/badge.svg)](https://github.com/ThreatFlux/FluxPrompt/actions/workflows/ci.yml)
 [![Security](https://github.com/ThreatFlux/FluxPrompt/actions/workflows/security.yml/badge.svg)](https://github.com/ThreatFlux/FluxPrompt/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-1.94%2B-orange.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.95%2B-orange.svg)](https://www.rust-lang.org)
 [![GitHub release](https://img.shields.io/github/v/release/ThreatFlux/FluxPrompt)](https://github.com/ThreatFlux/FluxPrompt/releases)
 
 **Async Rust SDK for detecting and mitigating prompt injection attacks in AI applications.**
@@ -120,7 +120,7 @@ cargo doc --no-deps --all-features
 
 ## Local Development
 
-FluxPrompt is pinned to Rust `1.94.0` and the Rust 2024 edition. A typical local verification flow is:
+FluxPrompt is pinned to Rust `1.95.0` and the Rust 2024 edition. A typical local verification flow is:
 
 ```bash
 git clone https://github.com/ThreatFlux/FluxPrompt.git
