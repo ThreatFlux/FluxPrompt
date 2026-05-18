@@ -18,7 +18,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
 regex = "1.12"
-dashmap = "6.1"
+dashmap = "6.2"
 rayon = "1.12"
 tracing = "0.1"
 thiserror = "2.0"
