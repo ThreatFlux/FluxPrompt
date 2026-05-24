@@ -197,8 +197,7 @@ async fn await_domain_specific_example() -> Result<(), Box<dyn std::error::Error
         ("Financial", finance_prompts),
     ];
 
-    for ((domain_name, config), (_, prompts)) in domain_configs.into_iter().zip(domain_prompts)
-    {
+    for ((domain_name, config), (_, prompts)) in domain_configs.into_iter().zip(domain_prompts) {
         println!("  Domain: {}", domain_name);
         let detector = FluxPrompt::new(config).await?;
 
