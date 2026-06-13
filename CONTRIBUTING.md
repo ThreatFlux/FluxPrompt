@@ -8,7 +8,7 @@ By participating in the project, you agree to follow [CODE_OF_CONDUCT.md](CODE_O
 
 ## Prerequisites
 
-- Rust `1.94.0` or later, with the repository pinned via `rust-toolchain.toml`
+- Rust `1.95.0` or later, with the repository pinned via `rust-toolchain.toml`
 - Git
 - Basic familiarity with async Rust and prompt-injection security concepts
 

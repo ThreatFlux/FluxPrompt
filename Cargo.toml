@@ -10,7 +10,7 @@ repository = "https://github.com/ThreatFlux/FluxPrompt"
 readme = "README.md"
 keywords = ["security", "ai", "prompt-injection", "llm", "detection"]
 categories = ["security", "ai", "text-processing"]
-rust-version = "1.94.0"
+rust-version = "1.95.0"
 
 [dependencies]
 tokio = { version = "1.52", features = ["full"] }

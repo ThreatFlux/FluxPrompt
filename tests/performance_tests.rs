@@ -145,11 +145,7 @@ async fn test_concurrent_load_performance() {
     }
 
     let elapsed = start_time.elapsed();
-    let avg_analysis_time = if successful_analyses > 0 {
-        total_analysis_time / successful_analyses
-    } else {
-        0
-    };
+    let avg_analysis_time = total_analysis_time / successful_analyses.max(1);
 
     println!("Concurrent load test results:");
     println!("  Total time: {:.2}s", elapsed.as_secs_f64());

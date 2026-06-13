@@ -4,7 +4,7 @@
         markdownlint \
         msrv msrv-install security-enhanced ci-local validate analyze examples release-prep dev
 
-RUST_MSRV := 1.94.0
+RUST_MSRV := 1.95.0
 
 # Default target
 all: install-tools fmt clippy markdownlint build test test-no-features build-examples test-doc doc-check doc-links audit security

@@ -30,7 +30,7 @@ This document covers deployment and operational guidance for running FluxPrompt 
 Example container pattern:
 
 ```dockerfile
-FROM rust:1.94-alpine AS builder
+FROM docker.io/threatflux/rust-cicd-template:base-rust-latest AS builder
 RUN adduser -D -s /bin/sh fluxprompt
 WORKDIR /app
 COPY . .
