@@ -1,14 +1,16 @@
 //! Configuration types and builders for FluxPrompt.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::types::{PreprocessingConfig, RiskLevel};
 
-/// Granular security levels for detection thresholds (0-10 scale).
-/// Level 0: Minimal filtering, Level 5: Balanced, Level 10: Maximum paranoia
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Granular sensitivity level for detector categories and thresholds (0-10).
+///
+/// Higher values lower decision thresholds and can increase both detections and
+/// false positives. The value is not an assurance or compliance level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct SecurityLevel(u8);
 
 impl SecurityLevel {
@@ -67,17 +69,17 @@ impl SecurityLevel {
     /// Returns a description of the security level's behavior.
     pub fn description(&self) -> &str {
         match self.0 {
-            0 => "Minimal filtering - allows almost everything",
-            1 => "Very permissive - only obvious attacks blocked",
-            2 => "Permissive - basic attack patterns only",
-            3 => "Light filtering - adds social engineering detection",
-            4 => "Moderate filtering - balanced security and usability",
-            5 => "Balanced - good security with reasonable false positives",
-            6 => "Enhanced filtering - includes encoding/obfuscation checks",
-            7 => "Strict filtering - aggressive pattern matching",
-            8 => "Very strict - low tolerance for suspicious content",
-            9 => "Near-paranoid - blocks most suspicious patterns",
-            10 => "Zero-tolerance - blocks almost everything suspicious",
+            0 => "Highest thresholds; no default built-in pattern categories",
+            1 => "Base instruction-override and jailbreak categories",
+            2 => "Base categories with lower decision thresholds",
+            3 => "Adds social-engineering categories",
+            4 => "Social-engineering categories with lower thresholds",
+            5 => "Adds encoding and context categories",
+            6 => "Encoding and context categories with lower thresholds",
+            7 => "Adds advanced pattern categories",
+            8 => "Advanced categories with lower thresholds",
+            9 => "Adds high-sensitivity pattern categories",
+            10 => "All built-in categories with the lowest thresholds",
             _ => "Unknown level",
         }
     }
@@ -128,13 +130,28 @@ impl SecurityLevel {
             ]);
         }
 
-        // Level 9-10: Add all comprehensive patterns
+        // Level 9-10: Add high-sensitivity patterns
         if self.0 >= 9 {
             categories
                 .extend_from_slice(&["context_breaking_advanced", "compliance_testing_disguised"]);
         }
 
+        // Level 10: Enable the final comprehensive jailbreak category
+        if self.0 >= 10 {
+            categories.push("jailbreak_comprehensive");
+        }
+
         categories
+    }
+}
+
+impl<'de> Deserialize<'de> for SecurityLevel {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let level = u8::deserialize(deserializer)?;
+        Self::new(level).map_err(serde::de::Error::custom)
     }
 }
 
@@ -150,16 +167,16 @@ impl std::fmt::Display for SecurityLevel {
     }
 }
 
-/// Legacy severity levels for backward compatibility.
+/// Legacy four-level sensitivity values retained for compatibility.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SeverityLevel {
-    /// Very permissive - only catch obvious attacks
+    /// Maps to security level 2
     Low,
-    /// Balanced approach - catch most attacks with few false positives
+    /// Maps to security level 5
     Medium,
-    /// Strict - catch all potential attacks, may have false positives
+    /// Maps to security level 7
     High,
-    /// Very strict - maximum security, high false positive rate
+    /// Maps to security level 10
     Paranoid,
 }
 
@@ -210,7 +227,7 @@ pub struct PatternConfig {
     pub custom_patterns: Vec<String>,
     /// Whether to use case-sensitive matching
     pub case_sensitive: bool,
-    /// Maximum number of patterns to compile
+    /// Maximum number of selected built-in and custom patterns to compile
     pub max_patterns: usize,
 }
 
@@ -235,7 +252,7 @@ impl Default for PatternConfig {
             enabled_categories: None, // Will be auto-populated based on security level
             custom_patterns: Vec::new(),
             case_sensitive: false,
-            max_patterns: 3000, // Increased for Phase 1 new patterns (200+ additional patterns)
+            max_patterns: 3000,
         }
     }
 }
@@ -245,18 +262,20 @@ impl Default for PatternConfig {
 pub struct SemanticConfig {
     /// Whether to enable semantic analysis
     pub enabled: bool,
-    /// Embedding model to use (if any)
+    /// Optional model label reserved for integrations.
+    ///
+    /// The built-in semantic analyzer does not load or invoke this model.
     pub model_name: Option<String>,
-    /// Similarity threshold for semantic matching
+    /// Threshold for keyword- and structure-based semantic heuristics
     pub similarity_threshold: f32,
-    /// Maximum context length for analysis
+    /// Maximum context length for analysis, measured in bytes
     pub max_context_length: usize,
 }
 
 impl Default for SemanticConfig {
     fn default() -> Self {
         Self {
-            enabled: false, // Disabled by default to avoid model dependencies
+            enabled: false,
             model_name: None,
             similarity_threshold: 0.8,
             max_context_length: 512,
@@ -264,16 +283,21 @@ impl Default for SemanticConfig {
     }
 }
 
-/// Configuration for rate limiting and resource management.
+/// Resource-related configuration.
+///
+/// `analysis_timeout` is a cooperative Tokio timeout around the analysis
+/// future. It cannot preempt a non-yielding CPU-bound stage and is therefore
+/// not a hard wall-clock limit. Concurrency, memory, and cache-size fields are
+/// carried as configuration but are not hard limits.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceConfig {
-    /// Maximum number of concurrent analyses
+    /// Requested maximum concurrent analyses; not currently enforced
     pub max_concurrent_analyses: usize,
-    /// Analysis timeout duration
+    /// Cooperative timeout requested for the analysis future
     pub analysis_timeout: Duration,
-    /// Maximum memory usage in MB
+    /// Requested memory limit in MB; not currently enforced
     pub max_memory_mb: usize,
-    /// Cache size for compiled patterns
+    /// Requested compiled-pattern cache size; not currently enforced
     pub pattern_cache_size: usize,
 }
 
@@ -289,11 +313,16 @@ impl Default for ResourceConfig {
 }
 
 /// Main configuration for FluxPrompt detection.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct DetectionConfig {
     /// Granular security level (0-10 scale)
     pub security_level: SecurityLevel,
-    /// Legacy severity level (for backward compatibility)
+    /// Deprecated compatibility input for configurations that predate `security_level`.
+    ///
+    /// For direct struct construction, `Some` retains its historical precedence
+    /// over `security_level`. Builders and deserialization normalize conflicting
+    /// fields so an explicitly supplied modern level wins. Modern struct literals
+    /// should set this field to `None` or use [`DetectionConfig::builder`].
     pub severity_level: Option<SeverityLevel>,
     /// Response strategy for detected injections
     pub response_strategy: ResponseStrategy,
@@ -307,8 +336,86 @@ pub struct DetectionConfig {
     pub resource_config: ResourceConfig,
     /// Whether to enable metrics collection
     pub enable_metrics: bool,
-    /// Custom configuration values
+    /// Application metadata not interpreted by the detector
     pub custom_config: HashMap<String, String>,
+}
+
+#[derive(Serialize)]
+struct DetectionConfigWireRef<'a> {
+    security_level: SecurityLevel,
+    severity_level: Option<SeverityLevel>,
+    response_strategy: &'a ResponseStrategy,
+    pattern_config: &'a PatternConfig,
+    semantic_config: &'a SemanticConfig,
+    preprocessing_config: &'a PreprocessingConfig,
+    resource_config: &'a ResourceConfig,
+    enable_metrics: bool,
+    custom_config: &'a HashMap<String, String>,
+}
+
+impl Serialize for DetectionConfig {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Direct legacy struct construction gives `severity_level` historical
+        // runtime precedence. Serialize that effective level into the modern
+        // field so the modern-wins deserializer cannot silently weaken the
+        // configuration during a JSON/YAML round trip.
+        DetectionConfigWireRef {
+            security_level: self.effective_security_level(),
+            severity_level: self.severity_level,
+            response_strategy: &self.response_strategy,
+            pattern_config: &self.pattern_config,
+            semantic_config: &self.semantic_config,
+            preprocessing_config: &self.preprocessing_config,
+            resource_config: &self.resource_config,
+            enable_metrics: self.enable_metrics,
+            custom_config: &self.custom_config,
+        }
+        .serialize(serializer)
+    }
+}
+
+#[derive(Deserialize)]
+struct DetectionConfigWire {
+    #[serde(default)]
+    security_level: Option<SecurityLevel>,
+    #[serde(default)]
+    severity_level: Option<SeverityLevel>,
+    response_strategy: ResponseStrategy,
+    pattern_config: PatternConfig,
+    semantic_config: SemanticConfig,
+    preprocessing_config: PreprocessingConfig,
+    resource_config: ResourceConfig,
+    enable_metrics: bool,
+    custom_config: HashMap<String, String>,
+}
+
+impl<'de> Deserialize<'de> for DetectionConfig {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let wire = DetectionConfigWire::deserialize(deserializer)?;
+        let (security_level, severity_level) = match (wire.security_level, wire.severity_level) {
+            (Some(level), _) => (level, None),
+            (None, Some(legacy)) => (legacy.to_security_level(), Some(legacy)),
+            (None, None) => (SecurityLevel::default(), None),
+        };
+
+        Ok(Self {
+            security_level,
+            severity_level,
+            response_strategy: wire.response_strategy,
+            pattern_config: wire.pattern_config,
+            semantic_config: wire.semantic_config,
+            preprocessing_config: wire.preprocessing_config,
+            resource_config: wire.resource_config,
+            enable_metrics: wire.enable_metrics,
+            custom_config: wire.custom_config,
+        })
+    }
 }
 
 impl Default for DetectionConfig {
@@ -333,7 +440,12 @@ impl DetectionConfig {
         DetectionConfigBuilder::default()
     }
 
-    /// Returns the effective security level (preferring new over legacy).
+    /// Returns the effective security level.
+    ///
+    /// The legacy field takes precedence for directly constructed configurations
+    /// to preserve historical behavior. Builders and deserialization normalize a
+    /// conflicting legacy value to `None`, so an explicitly supplied modern
+    /// security level wins on those paths.
     pub fn effective_security_level(&self) -> SecurityLevel {
         self.severity_level
             .map_or(self.security_level, |legacy| legacy.to_security_level())
@@ -341,12 +453,16 @@ impl DetectionConfig {
 
     /// Validates the configuration and returns any errors.
     pub fn validate(&self) -> crate::Result<()> {
-        // Validate pattern config
-        if self.pattern_config.max_patterns == 0 {
+        if self.security_level.level() > 10 {
             return Err(crate::error::FluxPromptError::config(
-                "max_patterns must be greater than 0",
+                "security_level must be between 0 and 10",
             ));
         }
+
+        crate::detection::patterns::validate_pattern_config(
+            &self.pattern_config,
+            &self.effective_security_level(),
+        )?;
 
         // Validate resource config
         if self.resource_config.max_concurrent_analyses == 0 {
@@ -362,9 +478,25 @@ impl DetectionConfig {
         }
 
         // Validate semantic config
-        if self.semantic_config.enabled && self.semantic_config.similarity_threshold <= 0.0 {
+        let similarity_threshold = self.semantic_config.similarity_threshold;
+        if !similarity_threshold.is_finite()
+            || similarity_threshold <= 0.0
+            || similarity_threshold > 1.0
+        {
             return Err(crate::error::FluxPromptError::config(
-                "similarity_threshold must be greater than 0",
+                "similarity_threshold must be greater than 0 and at most 1",
+            ));
+        }
+
+        if self.semantic_config.max_context_length == 0 {
+            return Err(crate::error::FluxPromptError::config(
+                "max_context_length must be greater than 0",
+            ));
+        }
+
+        if self.preprocessing_config.max_length == 0 {
+            return Err(crate::error::FluxPromptError::config(
+                "max_length must be greater than 0",
             ));
         }
 
@@ -390,12 +522,14 @@ impl DetectionConfigBuilder {
     /// Sets the granular security level (0-10).
     pub fn with_security_level(mut self, level: u8) -> Result<Self, String> {
         self.security_level = Some(SecurityLevel::new(level)?);
+        self.severity_level = None;
         Ok(self)
     }
 
     /// Sets the security level using SecurityLevel struct.
     pub fn with_security_level_struct(mut self, level: SecurityLevel) -> Self {
         self.security_level = Some(level);
+        self.severity_level = None;
         self
     }
 
@@ -427,7 +561,10 @@ impl DetectionConfigBuilder {
         self
     }
 
-    /// Sets the analysis timeout.
+    /// Sets the cooperative timeout for the analysis future.
+    ///
+    /// This cannot preempt a non-yielding CPU-bound stage and is not a hard
+    /// wall-clock limit.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         let mut config = self.resource_config.unwrap_or_default();
         config.analysis_timeout = timeout;
@@ -453,20 +590,17 @@ impl DetectionConfigBuilder {
 
     /// Builds the configuration.
     pub fn build(self) -> DetectionConfig {
-        // If severity_level is set but security_level is not, convert it
-        let security_level = if let Some(severity) = self.severity_level {
-            if self.security_level.is_none() {
-                severity.to_security_level()
-            } else {
-                self.security_level.unwrap_or_default()
-            }
-        } else {
-            self.security_level.unwrap_or_default()
+        // A modern security level takes precedence. Legacy severity is retained
+        // only when it supplied the effective value.
+        let (security_level, severity_level) = match (self.security_level, self.severity_level) {
+            (Some(level), _) => (level, None),
+            (None, Some(legacy)) => (legacy.to_security_level(), Some(legacy)),
+            (None, None) => (SecurityLevel::default(), None),
         };
 
         DetectionConfig {
             security_level,
-            severity_level: self.severity_level,
+            severity_level,
             response_strategy: self.response_strategy.unwrap_or_default(),
             pattern_config: self.pattern_config.unwrap_or_default(),
             semantic_config: self.semantic_config.unwrap_or_default(),
@@ -493,6 +627,16 @@ mod tests {
 
         // Test invalid level
         assert!(SecurityLevel::new(11).is_err());
+    }
+
+    #[test]
+    fn test_security_level_serde_preserves_integer_shape_and_range() {
+        let level = SecurityLevel::new(7).unwrap();
+
+        assert_eq!(serde_json::to_string(&level).unwrap(), "7");
+        assert_eq!(serde_json::from_str::<SecurityLevel>("7").unwrap(), level);
+        assert!(serde_json::from_str::<SecurityLevel>("11").is_err());
+        assert!(serde_json::from_str::<SecurityLevel>("255").is_err());
     }
 
     #[test]
@@ -545,12 +689,122 @@ mod tests {
     }
 
     #[test]
+    fn test_modern_security_level_takes_precedence_over_legacy_severity() {
+        let config = DetectionConfig::builder()
+            .with_security_level(3)
+            .unwrap()
+            .with_severity_level(SeverityLevel::Paranoid)
+            .build();
+
+        assert_eq!(config.effective_security_level().level(), 3);
+        assert_eq!(config.severity_level, None);
+
+        // Direct struct construction retains the legacy precedence used by
+        // downstream callers before the modern builder normalization existed.
+        let directly_constructed = DetectionConfig {
+            security_level: SecurityLevel::new(4).unwrap(),
+            severity_level: Some(SeverityLevel::Paranoid),
+            ..DetectionConfig::default()
+        };
+        assert_eq!(directly_constructed.effective_security_level().level(), 10);
+    }
+
+    #[test]
+    fn test_legacy_direct_config_round_trip_preserves_effective_security_level() {
+        let directly_constructed = DetectionConfig {
+            security_level: SecurityLevel::new(4).unwrap(),
+            severity_level: Some(SeverityLevel::Paranoid),
+            ..DetectionConfig::default()
+        };
+        let value = serde_json::to_value(&directly_constructed).unwrap();
+
+        assert_eq!(value["security_level"], serde_json::json!(10));
+        assert_eq!(value["severity_level"], serde_json::json!("Paranoid"));
+
+        let round_tripped: DetectionConfig = serde_json::from_value(value).unwrap();
+        assert_eq!(round_tripped.security_level.level(), 10);
+        assert_eq!(round_tripped.effective_security_level().level(), 10);
+        assert_eq!(round_tripped.severity_level, None);
+    }
+
+    #[test]
+    fn test_legacy_detection_config_maps_severity_when_security_level_is_absent() {
+        let mut value = serde_json::to_value(DetectionConfig::default()).unwrap();
+        value.as_object_mut().unwrap().remove("security_level");
+        value["severity_level"] = serde_json::json!("High");
+
+        let config: DetectionConfig = serde_json::from_value(value).unwrap();
+
+        assert_eq!(config.security_level.level(), 7);
+        assert_eq!(config.effective_security_level().level(), 7);
+        assert_eq!(config.severity_level, Some(SeverityLevel::High));
+    }
+
+    #[test]
+    fn test_deserialized_modern_security_level_wins_over_legacy_severity() {
+        let mut value = serde_json::to_value(DetectionConfig::default()).unwrap();
+        value["security_level"] = serde_json::json!(3);
+        value["severity_level"] = serde_json::json!("Paranoid");
+
+        let config: DetectionConfig = serde_json::from_value(value).unwrap();
+
+        assert_eq!(config.security_level.level(), 3);
+        assert_eq!(config.effective_security_level().level(), 3);
+        assert_eq!(config.severity_level, None);
+    }
+
+    #[test]
     fn test_config_validation() {
         let mut config = DetectionConfig::default();
         assert!(config.validate().is_ok());
 
         config.pattern_config.max_patterns = 0;
         assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_config_validation_rejects_deserialized_out_of_range_security_level() {
+        let mut value = serde_json::to_value(DetectionConfig::default()).unwrap();
+        value["security_level"] = serde_json::json!(255);
+
+        assert!(serde_json::from_value::<DetectionConfig>(value).is_err());
+    }
+
+    #[test]
+    fn test_config_validation_rejects_non_finite_semantic_threshold() {
+        let mut config = DetectionConfig::default();
+        config.semantic_config.similarity_threshold = f32::NAN;
+
+        assert!(config.validate().is_err());
+
+        config.semantic_config.similarity_threshold = f32::INFINITY;
+        assert!(config.validate().is_err());
+
+        config.semantic_config.similarity_threshold = 1.1;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_config_validation_rejects_over_limit_pattern_selection() {
+        let mut config = DetectionConfig::default();
+        config.pattern_config.max_patterns = 1;
+
+        let error = config.validate().unwrap_err().to_string();
+
+        assert!(error.contains("configured pattern count"));
+        assert!(error.contains("exceeds max_patterns (1)"));
+    }
+
+    #[test]
+    fn test_config_validation_rejects_invalid_custom_regex() {
+        let mut config = DetectionConfig::default();
+        config.pattern_config.enabled_categories = Some(Vec::new());
+        config.pattern_config.custom_patterns = vec!["[".to_string()];
+
+        assert!(matches!(
+            config.validate(),
+            Err(crate::error::FluxPromptError::PatternCompilation { .. })
+        ));
     }
 
     #[test]
@@ -576,6 +830,17 @@ mod tests {
         );
         assert!(
             level_5.enabled_threat_categories().len() >= level_0.enabled_threat_categories().len()
+        );
+        assert!(
+            !SecurityLevel::new(9)
+                .unwrap()
+                .enabled_threat_categories()
+                .contains(&"jailbreak_comprehensive")
+        );
+        assert!(
+            level_10
+                .enabled_threat_categories()
+                .contains(&"jailbreak_comprehensive")
         );
     }
 
@@ -913,7 +1178,11 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: DetectionConfig = serde_json::from_str(&json).unwrap();
 
-        assert_eq!(config.severity_level, deserialized.severity_level);
+        assert_eq!(
+            config.effective_security_level(),
+            deserialized.effective_security_level()
+        );
+        assert_eq!(deserialized.severity_level, None);
         assert_eq!(config.response_strategy, deserialized.response_strategy);
         assert_eq!(
             config.semantic_config.enabled,
@@ -985,10 +1254,10 @@ mod tests {
     fn test_semantic_config_validation_edge_cases() {
         let mut config = DetectionConfig::default();
 
-        // Test disabled semantic config with invalid threshold - should be OK
+        // Dormant semantic values must still be valid before they can be enabled.
         config.semantic_config.enabled = false;
         config.semantic_config.similarity_threshold = -1.0;
-        assert!(config.validate().is_ok()); // Invalid threshold ignored when disabled
+        assert!(config.validate().is_err());
 
         // Test enabled with valid edge case thresholds
         config.semantic_config.enabled = true;

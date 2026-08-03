@@ -330,10 +330,9 @@ fn get_safe_ollama_prompts() -> Vec<&'static str> {
 
 #[tokio::test]
 async fn test_ollama_attack_detection() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::Paranoid),
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::Paranoid)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -349,24 +348,20 @@ async fn test_ollama_attack_detection() {
     );
 
     for (category, attack) in &ollama_attacks {
+        let preview: String = attack.chars().take(60).collect();
+        let ellipsis = if attack.chars().count() > 60 {
+            "..."
+        } else {
+            ""
+        };
         let result = engine.analyze(attack).await.unwrap();
 
         if result.is_injection_detected() {
             detected_count += 1;
-            println!(
-                "✅ Detected [{}]: {}{}",
-                category,
-                &attack[..attack.len().min(60)],
-                if attack.len() > 60 { "..." } else { "" }
-            );
+            println!("✅ Detected [{}]: {}{}", category, preview, ellipsis);
         } else {
             failed_detections.push((*category, *attack));
-            println!(
-                "❌ Missed [{}]: {}{}",
-                category,
-                &attack[..attack.len().min(60)],
-                if attack.len() > 60 { "..." } else { "" }
-            );
+            println!("❌ Missed [{}]: {}{}", category, preview, ellipsis);
         }
     }
 
@@ -400,10 +395,9 @@ async fn test_ollama_attack_detection() {
 
 #[tokio::test]
 async fn test_ollama_false_positive_rate() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::Paranoid),
-        ..Default::default()
-    }; // Most sensitive mode
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::Paranoid)
+        .build(); // Most sensitive mode
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -443,10 +437,9 @@ async fn test_ollama_false_positive_rate() {
 
 #[tokio::test]
 async fn test_ollama_chat_template_attacks() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::High),
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::High)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -487,10 +480,9 @@ async fn test_ollama_chat_template_attacks() {
 
 #[tokio::test]
 async fn test_ollama_local_authority_claims() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::High),
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::High)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -543,10 +535,9 @@ async fn test_ollama_local_authority_claims() {
 
 #[tokio::test]
 async fn test_ollama_encoding_specific_attacks() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::High),
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::High)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -597,10 +588,9 @@ async fn test_ollama_encoding_specific_attacks() {
 
 #[tokio::test]
 async fn test_ollama_multi_turn_gradual_escalation() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::Paranoid),
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::Paranoid)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -663,10 +653,9 @@ async fn test_ollama_multi_turn_gradual_escalation() {
 
 #[tokio::test]
 async fn test_ollama_model_specific_attacks() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::High),
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::High)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -707,10 +696,9 @@ async fn test_ollama_model_specific_attacks() {
 
 #[tokio::test]
 async fn test_ollama_comprehensive_scenario() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::Paranoid),
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::Paranoid)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -758,7 +746,7 @@ async fn test_ollama_comprehensive_scenario() {
                 "✅ Complex attack detected with {} threat types, confidence {:.2}: {}...",
                 unique_threat_types.len(),
                 result.confidence(),
-                &attack[..attack.len().min(60)]
+                attack.chars().take(60).collect::<String>()
             );
         } else {
             println!("❌ Missed complex Ollama attack: {}", attack);

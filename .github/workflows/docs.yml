@@ -11,12 +11,13 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
+
+env:
+  RUSTDOCFLAGS: "-D warnings"
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-docs:
@@ -31,7 +32,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
-          toolchain: 1.95.0
+          toolchain: 1.97.1
 
       - name: Cache cargo registry
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -46,9 +47,7 @@ jobs:
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build documentation
-        run: |
-          cargo doc --no-deps --all-features --document-private-items
-          echo '<meta http-equiv="refresh" content="0; url=fluxprompt/index.html">' > target/doc/index.html
+        run: cargo doc --locked --no-deps
 
       - name: Add landing page
         run: |
@@ -79,6 +78,9 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

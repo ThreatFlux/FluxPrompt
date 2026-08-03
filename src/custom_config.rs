@@ -1,8 +1,9 @@
-//! Custom configuration system for FluxPrompt with advanced options and feature control.
+//! Serializable configuration wrappers and advanced policy metadata.
 //!
-//! This module provides a comprehensive configuration system that allows users to create
-//! fully customized security configurations with granular feature control, advanced
-//! options, and preset-based starting points.
+//! [`crate::FluxPrompt::from_custom_config`] currently consumes only
+//! [`CustomConfig::detection_config`]. Feature descriptors and advanced options
+//! can be stored and validated here, but FluxPrompt does not independently
+//! enforce them.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,7 +17,10 @@ use crate::config::{DetectionConfig, ResponseStrategy, SecurityLevel};
 use crate::features::Features;
 use crate::presets::Preset;
 
-/// Advanced configuration options for fine-grained control.
+/// Advanced policy-shaped metadata.
+///
+/// The current detector does not consume these values. A host application may
+/// interpret and enforce them separately.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AdvancedOptions {
     /// Per-category confidence thresholds (category_name -> threshold)
@@ -35,15 +39,15 @@ pub struct AdvancedOptions {
     pub rate_limiting: RateLimitConfig,
     /// Custom response templates for different scenarios
     pub response_templates: HashMap<String, String>,
-    /// Pattern allowlists (patterns that should never be flagged)
+    /// Pattern allowlist metadata for a host application
     pub pattern_allowlists: Vec<String>,
-    /// Pattern denylists (patterns that should always be flagged)
+    /// Pattern denylist metadata for a host application
     pub pattern_denylists: Vec<String>,
     /// Context-aware settings that consider conversation history
     pub context_awareness: ContextAwarenessConfig,
 }
 
-/// Language-specific configuration settings.
+/// Language-specific metadata for a host application.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LanguageSettings {
     /// Language-specific pattern overrides
@@ -56,7 +60,7 @@ pub struct LanguageSettings {
     pub character_set: Option<String>,
 }
 
-/// Time-based configuration rules.
+/// Time-based policy metadata for a host application.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeBasedRules {
     /// Business hours configuration (stricter rules)
@@ -84,7 +88,7 @@ pub struct TimeConfig {
     pub threshold_adjustments: HashMap<String, f32>,
 }
 
-/// Role-based configuration overrides.
+/// Role-based policy metadata for a host application.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleConfig {
     /// Role name/identifier
@@ -101,22 +105,24 @@ pub struct RoleConfig {
     pub permissions: HashMap<String, bool>,
 }
 
-/// Geographic/locale-specific settings.
+/// Geographic/locale policy metadata for a host application.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocaleSettings {
     /// Locale identifier (e.g., "en-US", "fr-FR")
     pub locale: String,
-    /// Compliance requirements for this locale
+    /// Compliance labels supplied by the host application
     pub compliance_requirements: Vec<String>,
     /// Locale-specific patterns
     pub custom_patterns: Vec<String>,
-    /// Privacy regulations applicable (GDPR, CCPA, etc.)
+    /// Privacy-regulation labels supplied by the host application
     pub privacy_regulations: Vec<String>,
     /// Cultural sensitivity adjustments
     pub cultural_adjustments: HashMap<String, f32>,
 }
 
-/// Rate limiting configuration.
+/// Rate-limit metadata for a host application.
+///
+/// FluxPrompt does not enforce these limits.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RateLimitConfig {
     /// Maximum requests per minute per user/IP
@@ -157,7 +163,10 @@ pub struct CustomRateLimit {
     pub restrictions: HashMap<String, String>,
 }
 
-/// Context awareness configuration.
+/// Conversation-context metadata for a host application.
+///
+/// FluxPrompt analyzes one string at a time and does not consume this history
+/// configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextAwarenessConfig {
     /// Whether to consider conversation history
@@ -172,7 +181,7 @@ pub struct ContextAwarenessConfig {
     pub context_window_size: usize,
 }
 
-/// Comprehensive custom configuration for FluxPrompt.
+/// Serializable custom configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomConfig {
     /// Unique identifier for this configuration
@@ -191,9 +200,9 @@ pub struct CustomConfig {
     pub base_preset: Option<Preset>,
     /// Core detection configuration
     pub detection_config: DetectionConfig,
-    /// Feature toggles configuration
+    /// Feature descriptors; not applied by the current runtime
     pub features: Features,
-    /// Advanced configuration options
+    /// Advanced policy metadata; not enforced by the current runtime
     pub advanced_options: AdvancedOptions,
     /// Configuration metadata
     pub metadata: HashMap<String, String>,
@@ -216,8 +225,29 @@ pub struct ValidationStatus {
     pub errors: Vec<String>,
     /// Validation warnings
     pub warnings: Vec<String>,
-    /// Configuration checksum for integrity verification
+    /// Non-cryptographic marker for detecting configuration changes.
+    ///
+    /// The field name is retained for wire compatibility. This value is not a
+    /// security checksum and must not be used to establish integrity,
+    /// authenticity, or trust. Its format may change between crate releases.
     pub checksum: String,
+}
+
+#[derive(Serialize)]
+struct ChangeMarkerMaterial<'a> {
+    id: &'a Uuid,
+    name: &'a str,
+    description: &'a str,
+    version: &'a str,
+    created_at: &'a SystemTime,
+    modified_at: &'a SystemTime,
+    base_preset: &'a Option<Preset>,
+    detection_config: &'a DetectionConfig,
+    features: &'a Features,
+    advanced_options: &'a AdvancedOptions,
+    metadata: &'a HashMap<String, String>,
+    tags: &'a [String],
+    enabled: bool,
 }
 
 impl CustomConfig {
@@ -282,13 +312,23 @@ impl CustomConfig {
         // Validate thresholds
         self.validate_thresholds(&mut errors);
 
+        let change_marker = match self.calculate_change_marker() {
+            Ok(marker) => marker,
+            Err(error) => {
+                errors.push(format!(
+                    "Configuration change marker could not be calculated: {error}"
+                ));
+                String::new()
+            }
+        };
+
         // Update validation status
         self.validation_status = ValidationStatus {
             is_valid: errors.is_empty(),
             validated_at: SystemTime::now(),
             errors,
             warnings,
-            checksum: self.calculate_checksum(),
+            checksum: change_marker,
         };
 
         if !self.validation_status.is_valid {
@@ -326,7 +366,7 @@ impl CustomConfig {
     fn validate_advanced_options(&self, errors: &mut Vec<String>, warnings: &mut Vec<String>) {
         // Validate category thresholds
         for (category, threshold) in &self.advanced_options.category_thresholds {
-            if *threshold < 0.0 || *threshold > 1.0 {
+            if !threshold.is_finite() || *threshold < 0.0 || *threshold > 1.0 {
                 errors.push(format!(
                     "Invalid threshold for category {}: {}",
                     category, threshold
@@ -336,7 +376,7 @@ impl CustomConfig {
 
         // Validate threat weights
         for (threat_type, weight) in &self.advanced_options.threat_weights {
-            if *weight < 0.0 {
+            if !weight.is_finite() || *weight < 0.0 {
                 errors.push(format!(
                     "Invalid weight for threat type {}: {}",
                     threat_type, weight
@@ -373,30 +413,36 @@ impl CustomConfig {
         }
     }
 
-    /// Calculates a checksum for configuration integrity verification.
-    fn calculate_checksum(&self) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+    /// Calculates a deterministic, non-cryptographic configuration change marker.
+    fn calculate_change_marker(&self) -> serde_json::Result<String> {
+        let material = ChangeMarkerMaterial {
+            id: &self.id,
+            name: &self.name,
+            description: &self.description,
+            version: &self.version,
+            created_at: &self.created_at,
+            modified_at: &self.modified_at,
+            base_preset: &self.base_preset,
+            detection_config: &self.detection_config,
+            features: &self.features,
+            advanced_options: &self.advanced_options,
+            metadata: &self.metadata,
+            tags: &self.tags,
+            enabled: self.enabled,
+        };
+        let value = serde_json::to_value(material)?;
+        let mut canonical = Vec::new();
+        write_canonical_json(&value, &mut canonical)?;
 
-        let mut hasher = DefaultHasher::new();
+        // FNV-1a is deliberately used as a small deterministic change detector,
+        // not as a cryptographic integrity or authenticity mechanism.
+        let mut marker = 0xcbf2_9ce4_8422_2325_u64;
+        for byte in canonical {
+            marker ^= u64::from(byte);
+            marker = marker.wrapping_mul(0x0000_0100_0000_01b3);
+        }
 
-        // Include name and version in checksum
-        self.name.hash(&mut hasher);
-        self.version.hash(&mut hasher);
-
-        // Hash key configuration elements
-        self.detection_config
-            .security_level
-            .level()
-            .hash(&mut hasher);
-        serde_json::to_string(&self.features)
-            .unwrap_or_default()
-            .hash(&mut hasher);
-        serde_json::to_string(&self.advanced_options.category_thresholds)
-            .unwrap_or_default()
-            .hash(&mut hasher);
-
-        format!("{:x}", hasher.finish())
+        Ok(format!("fnv1a64:{marker:016x}"))
     }
 
     /// Merges this configuration with another, with the other taking priority.
@@ -544,6 +590,38 @@ impl CustomConfig {
     }
 }
 
+fn write_canonical_json(value: &serde_json::Value, output: &mut Vec<u8>) -> serde_json::Result<()> {
+    match value {
+        serde_json::Value::Array(values) => {
+            output.push(b'[');
+            for (index, value) in values.iter().enumerate() {
+                if index > 0 {
+                    output.push(b',');
+                }
+                write_canonical_json(value, output)?;
+            }
+            output.push(b']');
+        }
+        serde_json::Value::Object(values) => {
+            output.push(b'{');
+            let mut entries = values.iter().collect::<Vec<_>>();
+            entries.sort_unstable_by_key(|(key, _)| *key);
+            for (index, (key, value)) in entries.into_iter().enumerate() {
+                if index > 0 {
+                    output.push(b',');
+                }
+                output.extend(serde_json::to_vec(key)?);
+                output.push(b':');
+                write_canonical_json(value, output)?;
+            }
+            output.push(b'}');
+        }
+        _ => output.extend(serde_json::to_vec(value)?),
+    }
+
+    Ok(())
+}
+
 /// Summary information about a configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigurationSummary {
@@ -656,6 +734,7 @@ mod tests {
         // Should be valid by default
         assert!(config.validate().is_ok());
         assert!(config.validation_status.is_valid);
+        assert!(config.validation_status.checksum.starts_with("fnv1a64:"));
 
         // Add invalid threshold
         config.advanced_options.category_thresholds.insert(
@@ -666,6 +745,31 @@ mod tests {
         assert!(config.validate().is_err());
         assert!(!config.validation_status.is_valid);
         assert!(!config.validation_status.errors.is_empty());
+    }
+
+    #[test]
+    fn test_config_validation_rejects_non_finite_advanced_values() {
+        for invalid_threshold in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let mut config = CustomConfig::new("Invalid".to_string(), "Test".to_string());
+            config
+                .advanced_options
+                .category_thresholds
+                .insert("category".to_string(), invalid_threshold);
+
+            assert!(config.validate().is_err());
+            assert!(!config.validation_status.is_valid);
+        }
+
+        for invalid_weight in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            let mut config = CustomConfig::new("Invalid".to_string(), "Test".to_string());
+            config
+                .advanced_options
+                .threat_weights
+                .insert("threat".to_string(), invalid_weight);
+
+            assert!(config.validate().is_err());
+            assert!(!config.validation_status.is_valid);
+        }
     }
 
     #[test]
@@ -711,7 +815,7 @@ mod tests {
         let config = CustomConfig::from_preset(
             Preset::Healthcare,
             "Healthcare Config".to_string(),
-            "HIPAA compliant configuration".to_string(),
+            "Healthcare-labeled starting configuration".to_string(),
         );
 
         // Test JSON serialization
@@ -732,7 +836,7 @@ mod tests {
         let config = CustomConfig::from_preset(
             Preset::Financial,
             "Financial Config".to_string(),
-            "High security financial configuration".to_string(),
+            "Financial-labeled starting configuration".to_string(),
         );
 
         let summary = config.summary();
@@ -808,19 +912,43 @@ mod tests {
     }
 
     #[test]
-    fn test_config_checksum() {
+    fn test_config_change_marker() {
         let config1 = CustomConfig::new("Test1".to_string(), "Description1".to_string());
         let config2 = CustomConfig::new("Test2".to_string(), "Description2".to_string());
 
-        let checksum1 = config1.calculate_checksum();
-        let checksum2 = config2.calculate_checksum();
+        let marker1 = config1.calculate_change_marker().unwrap();
+        let marker2 = config2.calculate_change_marker().unwrap();
 
-        // Different configs should have different checksums
-        assert_ne!(checksum1, checksum2);
+        assert!(marker1.starts_with("fnv1a64:"));
+        assert_ne!(marker1, marker2);
 
-        // Same config should have same checksum
-        let checksum1_again = config1.calculate_checksum();
-        assert_eq!(checksum1, checksum1_again);
+        let marker1_again = config1.calculate_change_marker().unwrap();
+        assert_eq!(marker1, marker1_again);
+    }
+
+    #[test]
+    fn test_config_change_marker_covers_runtime_configuration() {
+        let config = CustomConfig::new("Test".to_string(), "Description".to_string());
+        let marker = config.calculate_change_marker().unwrap();
+        let mut changed = config.clone();
+        changed.detection_config.response_strategy = ResponseStrategy::Warn;
+
+        assert_ne!(marker, changed.calculate_change_marker().unwrap());
+    }
+
+    #[test]
+    fn test_config_change_marker_canonicalizes_map_order() {
+        let mut first = CustomConfig::new("Test".to_string(), "Description".to_string());
+        let mut second = first.clone();
+        first.metadata.insert("alpha".to_string(), "1".to_string());
+        first.metadata.insert("beta".to_string(), "2".to_string());
+        second.metadata.insert("beta".to_string(), "2".to_string());
+        second.metadata.insert("alpha".to_string(), "1".to_string());
+
+        assert_eq!(
+            first.calculate_change_marker().unwrap(),
+            second.calculate_change_marker().unwrap()
+        );
     }
 
     #[test]

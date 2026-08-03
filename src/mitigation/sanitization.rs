@@ -10,6 +10,7 @@ use crate::config::DetectionConfig;
 use crate::detection::DetectionResult;
 use crate::error::Result;
 use crate::types::{TextSpan, ThreatInfo, ThreatType};
+use crate::utils::truncate_utf8;
 
 /// Regex patterns for common sanitization tasks.
 static SANITIZATION_PATTERNS: Lazy<HashMap<&'static str, Regex>> = Lazy::new(|| {
@@ -55,13 +56,19 @@ pub struct TextSanitizer {
 impl TextSanitizer {
     /// Creates a new text sanitizer.
     pub fn new(config: &DetectionConfig) -> Result<Self> {
+        config.validate()?;
+        Ok(Self::from_validated_config(config))
+    }
+
+    /// Creates a sanitizer from a configuration validated by the caller.
+    pub(crate) fn from_validated_config(config: &DetectionConfig) -> Self {
         let strategy_selector = StrategySelector::new();
 
-        Ok(Self {
+        Self {
             strategy_selector,
             config: config.clone(),
             aggressive_mode: config.effective_security_level().confidence_threshold() < 0.6,
-        })
+        }
     }
 
     /// Sanitizes text based on detection results.
@@ -72,15 +79,11 @@ impl TextSanitizer {
             detection_result.threats().len()
         );
 
-        let mut sanitized_text = text.to_string();
+        // Threat spans use coordinates from the original input. Apply those
+        // before cleanup steps that can change text length.
+        let mut sanitized_text = self.apply_threat_mitigations(text, detection_result).await;
 
-        // Apply general sanitization first
         sanitized_text = self.apply_general_sanitization(&sanitized_text);
-
-        // Apply threat-specific mitigations
-        sanitized_text = self
-            .apply_threat_mitigations(&sanitized_text, detection_result)
-            .await;
 
         // Final cleanup
         sanitized_text = self.apply_final_cleanup(&sanitized_text);
@@ -167,8 +170,10 @@ impl TextSanitizer {
         threat: &ThreatInfo,
         span: &TextSpan,
     ) -> String {
-        // Validate span bounds
-        if span.start >= text.len() || span.end > text.len() || span.start >= span.end {
+        let Some(original_segment) = text.get(span.start..span.end) else {
+            return text.to_string();
+        };
+        if span.start >= span.end || original_segment != span.content {
             return text.to_string();
         }
 
@@ -179,7 +184,6 @@ impl TextSanitizer {
         );
 
         let strategy = self.strategy_selector.select_strategy(&context);
-        let original_segment = &text[span.start..span.end];
         let mitigated_segment = strategy.apply(original_segment, Some(&context));
 
         let mut result = String::with_capacity(text.len());
@@ -195,6 +199,23 @@ impl TextSanitizer {
         let context = ThreatContext::new(threat.threat_type.clone(), threat.confidence, None);
 
         let strategy = self.strategy_selector.select_strategy(&context);
+
+        // Preprocessing or decoded-variant analysis can invalidate an otherwise
+        // trustworthy localized span. In those specific cases, fail closed
+        // instead of applying the ordinary low-confidence global-threat policy,
+        // which intentionally preserves content for signals that never had a span.
+        if threat.metadata.get("span_omitted").is_some_and(|reason| {
+            matches!(
+                reason.as_str(),
+                "preprocessing_changed_coordinates" | "decoded_variant_coordinates"
+            )
+        }) {
+            return if strategy.removes_threat() {
+                strategy.apply(text, Some(&context))
+            } else {
+                "[FILTERED]".to_string()
+            };
+        }
 
         match &threat.threat_type {
             ThreatType::EncodingBypass => self.decode_and_sanitize_encodings(text),
@@ -234,7 +255,7 @@ impl TextSanitizer {
         result
     }
 
-    /// Safely decodes URL encoding while preserving safe content.
+    /// Decodes a limited set of URL-encoded characters.
     fn safe_url_decode(&self, text: &str) -> String {
         // Simple URL decoding that only handles common safe patterns
         text.replace("%20", " ")
@@ -318,7 +339,7 @@ impl TextSanitizer {
 
         // Ensure text doesn't exceed maximum length
         if result.len() > self.config.preprocessing_config.max_length {
-            result.truncate(self.config.preprocessing_config.max_length);
+            truncate_utf8(&mut result, self.config.preprocessing_config.max_length);
             result.push_str("[TRUNCATED]");
         }
 
@@ -328,8 +349,25 @@ impl TextSanitizer {
         result
     }
 
-    /// Updates the sanitizer configuration.
+    /// Updates the sanitizer configuration without validation.
+    ///
+    /// This method retains its original infallible behavior for source
+    /// compatibility. New code that accepts untrusted or dynamically assembled
+    /// configurations should use [`Self::try_update_config`].
     pub fn update_config(&mut self, config: &DetectionConfig) {
+        self.apply_config(config);
+    }
+
+    /// Validates and updates the sanitizer configuration.
+    ///
+    /// If validation fails, the current configuration remains unchanged.
+    pub fn try_update_config(&mut self, config: &DetectionConfig) -> Result<()> {
+        config.validate()?;
+        self.apply_config(config);
+        Ok(())
+    }
+
+    fn apply_config(&mut self, config: &DetectionConfig) {
         self.config = config.clone();
         self.aggressive_mode = config.effective_security_level().confidence_threshold() < 0.6;
     }
@@ -348,7 +386,7 @@ impl TextSanitizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{DetectionConfig, SeverityLevel};
+    use crate::config::{DetectionConfig, SecurityLevel};
     use crate::detection::DetectionResult;
     use crate::types::{RiskLevel, TextSpan, ThreatInfo};
 
@@ -441,7 +479,7 @@ mod tests {
             confidence: 0.9,
             span: Some(TextSpan {
                 start: 6,
-                end: 22,
+                end: 23,
                 content: "dangerous content".to_string(),
             }),
             metadata: HashMap::new(),
@@ -560,7 +598,7 @@ mod tests {
     #[tokio::test]
     async fn test_aggressive_mode_sanitization() {
         let config = DetectionConfig {
-            severity_level: Some(SeverityLevel::High), // Should trigger aggressive mode
+            security_level: SecurityLevel::new(7).unwrap(),
             ..Default::default()
         };
 
@@ -685,6 +723,48 @@ mod tests {
         assert!(
             result.contains("[SOCIAL_ENGINEERING_WARNING]"),
             "Warning should be added"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_invalidated_span_fails_closed_without_changing_ordinary_spanless_signal() {
+        let sanitizer = TextSanitizer::new(&DetectionConfig::default()).unwrap();
+        let text = "evil";
+        for reason in [
+            "preprocessing_changed_coordinates",
+            "decoded_variant_coordinates",
+        ] {
+            let invalidated = DetectionResult::new(
+                RiskLevel::Critical,
+                0.7,
+                vec![ThreatInfo {
+                    threat_type: ThreatType::Custom("custom".to_string()),
+                    confidence: 0.7,
+                    span: None,
+                    metadata: HashMap::from([("span_omitted".to_string(), reason.to_string())]),
+                }],
+                0,
+            );
+            assert_eq!(
+                sanitizer.sanitize(text, &invalidated).await.unwrap(),
+                "[FILTERED]"
+            );
+        }
+
+        let ordinary_spanless = DetectionResult::new(
+            RiskLevel::Critical,
+            0.7,
+            vec![ThreatInfo {
+                threat_type: ThreatType::Custom("custom".to_string()),
+                confidence: 0.7,
+                span: None,
+                metadata: HashMap::new(),
+            }],
+            0,
+        );
+        assert_eq!(
+            sanitizer.sanitize(text, &ordinary_spanless).await.unwrap(),
+            text
         );
     }
 
@@ -873,7 +953,7 @@ mod tests {
     #[tokio::test]
     async fn test_configuration_updates() {
         let mut config = DetectionConfig {
-            severity_level: Some(SeverityLevel::Low),
+            security_level: SecurityLevel::new(2).unwrap(),
             ..Default::default()
         };
 
@@ -881,9 +961,47 @@ mod tests {
         assert!(!sanitizer.is_aggressive_mode());
 
         // Update to aggressive mode
-        config.severity_level = Some(SeverityLevel::High);
-        sanitizer.update_config(&config);
+        config.security_level = SecurityLevel::new(7).unwrap();
+        let legacy_update: fn(&mut TextSanitizer, &DetectionConfig) = TextSanitizer::update_config;
+        legacy_update(&mut sanitizer, &config);
         assert!(sanitizer.is_aggressive_mode());
+
+        config.pattern_config.max_patterns = 0;
+        assert!(sanitizer.try_update_config(&config).is_err());
+        assert!(sanitizer.is_aggressive_mode());
+    }
+
+    #[test]
+    fn test_localized_mitigation_rejects_invalid_utf8_or_stale_spans() {
+        let sanitizer = TextSanitizer::new(&DetectionConfig::default()).unwrap();
+        let text = "évil content";
+        let threat = ThreatInfo {
+            threat_type: ThreatType::InstructionOverride,
+            confidence: 0.9,
+            span: None,
+            metadata: HashMap::new(),
+        };
+
+        let inside_code_point = TextSpan::new(1, 2, String::new());
+        assert_eq!(
+            sanitizer.apply_localized_mitigation(text, &threat, &inside_code_point),
+            text
+        );
+
+        let stale = TextSpan::new(0, 2, "different".to_string());
+        assert_eq!(
+            sanitizer.apply_localized_mitigation(text, &threat, &stale),
+            text
+        );
+    }
+
+    #[test]
+    fn test_final_cleanup_truncates_at_utf8_boundary() {
+        let mut config = DetectionConfig::default();
+        config.preprocessing_config.max_length = 3;
+        let sanitizer = TextSanitizer::new(&config).unwrap();
+
+        assert_eq!(sanitizer.apply_final_cleanup("abéz"), "ab[TRUNCATED]");
     }
 
     #[tokio::test]

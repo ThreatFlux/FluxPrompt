@@ -6,26 +6,31 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 10
-    reviewers:
-      - "ThreatFlux/maintainers"
     labels:
       - "dependencies"
       - "rust"
+    groups:
+      compatible-updates:
+        update-types:
+          - "minor"
+          - "patch"
     commit-message:
       prefix: "chore"
       include: "scope"
-    
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 5
-    reviewers:
-      - "ThreatFlux/maintainers"
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      action-updates:
+        patterns:
+          - "*"
     commit-message:
       prefix: "ci"
       include: "scope"

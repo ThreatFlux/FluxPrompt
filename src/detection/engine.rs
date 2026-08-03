@@ -12,6 +12,7 @@ use super::{HeuristicAnalyzer, PatternMatcher, SemanticAnalyzer};
 use crate::config::DetectionConfig;
 use crate::error::{FluxPromptError, Result};
 use crate::types::{RiskLevel, ThreatInfo, ThreatType};
+use crate::utils::truncate_utf8;
 
 /// Result of a detection analysis.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,6 +111,12 @@ impl DetectionEngine {
     /// Creates a new detection engine with the given configuration.
     #[instrument(skip(config))]
     pub async fn new(config: &DetectionConfig) -> Result<Self> {
+        config.validate()?;
+        Self::from_validated_config(config).await
+    }
+
+    /// Creates a detection engine from a configuration validated by the caller.
+    pub(crate) async fn from_validated_config(config: &DetectionConfig) -> Result<Self> {
         debug!("Initializing detection engine");
 
         // Initialize pattern matcher with security level
@@ -140,7 +147,7 @@ impl DetectionEngine {
     }
 
     /// Analyzes a prompt for potential injection attacks.
-    #[instrument(skip(self))]
+    #[instrument(skip_all, fields(prompt_len = prompt.len()))]
     pub async fn analyze(&self, prompt: &str) -> Result<DetectionResult> {
         let start_time = Instant::now();
 
@@ -157,7 +164,8 @@ impl DetectionEngine {
         // Preprocess the prompt
         let processed_prompt = self.preprocess_prompt(prompt)?;
 
-        // Apply timeout to the entire analysis
+        // Wrap the analysis in a cooperative timeout. CPU-bound stages that do
+        // not yield cannot be preempted and may run past this duration.
         let analysis_result = timeout(
             self.config.resource_config.analysis_timeout,
             self.perform_analysis(&processed_prompt),
@@ -169,6 +177,16 @@ impl DetectionEngine {
         match analysis_result {
             Ok(result) => {
                 let mut detection_result = result?;
+                if processed_prompt != prompt {
+                    for threat in &mut detection_result.threats {
+                        if threat.span.take().is_some() {
+                            threat.metadata.insert(
+                                "span_omitted".to_string(),
+                                "preprocessing_changed_coordinates".to_string(),
+                            );
+                        }
+                    }
+                }
                 detection_result.analysis_duration_ms = analysis_duration.as_millis() as u64;
                 Ok(detection_result)
             }
@@ -210,7 +228,14 @@ impl DetectionEngine {
                 // Re-analyze decoded content with patterns only (avoid infinite recursion)
                 let variant_pattern_threats = self.pattern_matcher.analyze(&variant).await?;
                 for mut threat in variant_pattern_threats {
-                    // Mark as decoded variant and boost confidence slightly
+                    // Decoded text has a different coordinate space from the
+                    // caller's prompt, so its spans cannot be used safely for
+                    // localized mitigation.
+                    threat.span = None;
+                    threat.metadata.insert(
+                        "span_omitted".to_string(),
+                        "decoded_variant_coordinates".to_string(),
+                    );
                     threat
                         .metadata
                         .insert("decoded_variant".to_string(), "true".to_string());
@@ -386,7 +411,7 @@ impl DetectionEngine {
 
         // Unicode normalization
         if self.config.preprocessing_config.normalize_unicode {
-            // Basic normalization - in production, use proper unicode normalization
+            // Remove control characters while retaining line and tab structure.
             processed = processed
                 .chars()
                 .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
@@ -412,9 +437,7 @@ impl DetectionEngine {
         }
 
         // Truncate if still too long
-        if processed.len() > self.config.preprocessing_config.max_length {
-            processed.truncate(self.config.preprocessing_config.max_length);
-        }
+        truncate_utf8(&mut processed, self.config.preprocessing_config.max_length);
 
         Ok(processed)
     }
@@ -425,8 +448,7 @@ impl DetectionEngine {
             && text
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '=')
-            && text.ends_with('=')
-            || text.ends_with("==")
+            && (text.ends_with('=') || text.ends_with("=="))
     }
 
     /// Enhanced risk calculation with granular security level scaling.
@@ -982,6 +1004,14 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_engine_rejects_invalid_config() {
+        let mut config = DetectionConfig::default();
+        config.pattern_config.max_patterns = 0;
+
+        assert!(DetectionEngine::new(&config).await.is_err());
+    }
+
+    #[tokio::test]
     async fn test_long_prompt_rejection() {
         let mut config = DetectionConfig::default();
         config.preprocessing_config.max_length = 10;
@@ -1115,6 +1145,17 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_preprocessing_truncates_at_utf8_boundary() {
+        let mut config = DetectionConfig::default();
+        config.preprocessing_config.max_length = 3;
+        let engine = DetectionEngine::new(&config).await.unwrap();
+
+        let processed = engine.preprocess_prompt("abéz").unwrap();
+        assert_eq!(processed, "ab");
+        assert!(processed.len() <= config.preprocessing_config.max_length);
+    }
+
+    #[tokio::test]
     async fn test_risk_calculation_and_aggregation() {
         let config = DetectionConfig::default();
         let engine = DetectionEngine::new(&config).await.unwrap();
@@ -1169,10 +1210,9 @@ mod tests {
         ];
 
         for severity in severity_levels {
-            let config = DetectionConfig {
-                severity_level: Some(severity),
-                ..Default::default()
-            };
+            let config = DetectionConfig::builder()
+                .with_severity_level(severity)
+                .build();
 
             let engine = DetectionEngine::new(&config).await.unwrap();
 

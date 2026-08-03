@@ -1,267 +1,137 @@
-# FluxPrompt Architecture Overview
+# Architecture
 
-FluxPrompt is designed as a high-performance, multi-layered prompt injection detection system with a modular architecture that prioritizes both security effectiveness and operational efficiency.
+FluxPrompt is an in-process Rust library. It accepts one text string per analysis and returns a structured analysis result plus optional mitigation text. It does not proxy an LLM request or call an external model.
 
-## System Architecture
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                        FluxPrompt API                       │
-├─────────────────────────────────────────────────────────────┤
-│                    Configuration Layer                     │
-├─────────────────────────────────────────────────────────────┤
-│                   Detection Pipeline                       │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────┐ │
-│  │ Preprocessing│ │   Pattern   │ │      Semantic         │ │
-│  │   Engine     │ │   Matcher   │ │      Analyzer         │ │
-│  └─────────────┘ └─────────────┘ └─────────────────────────┘ │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────┐ │
-│  │ Heuristic   │ │    Risk     │ │      Threat           │ │
-│  │  Analyzer   │ │ Assessment  │ │   Classification      │ │
-│  └─────────────┘ └─────────────┘ └─────────────────────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│                   Mitigation Engine                        │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────┐ │
-│  │Text Sanitizer│ │  Strategy   │ │     Response          │ │
-│  │             │ │  Selector   │ │    Generator          │ │
-│  └─────────────┘ └─────────────┘ └─────────────────────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│                    Metrics & Monitoring                    │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────────┐ │
-│  │  Metrics    │ │ Performance │ │       Alert           │ │
-│  │ Collector   │ │  Monitor    │ │      System           │ │
-│  └─────────────┘ └─────────────┘ └─────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```text
-
-## Core Components
-
-### 1. FluxPrompt API Layer
-
-The main entry point providing a clean, async API for prompt analysis:
-
-- **FluxPrompt**: Main detector instance managing all subsystems
-- **Configuration Management**: Runtime configuration updates
-- **Result Aggregation**: Combines detection results with mitigation responses
-- **Metrics Integration**: Automatic collection of performance and security metrics
-
-### 2. Configuration Layer
-
-Flexible configuration system supporting runtime updates:
-
-- **DetectionConfig**: Main configuration container
-- **PatternConfig**: Regex pattern compilation and management
-- **SemanticConfig**: NLP model configuration (when enabled)
-- **ResourceConfig**: Performance and resource limits
-- **Custom Extensions**: Domain-specific configuration options
-
-### 3. Detection Pipeline
-
-Multi-stage detection system with parallel processing:
-
-#### Preprocessing Engine
-- **Text Normalization**: Unicode normalization, whitespace cleanup
-- **Encoding Detection**: Identifies Base64, URL encoding, Unicode escapes
-- **Input Validation**: Length limits, character filtering
-- **Format Standardization**: Consistent input format for analyzers
-
-#### Pattern Matcher
-- **Regex Engine**: Compiled pattern sets for different threat categories
-- **Built-in Patterns**: Pre-configured patterns for common attacks
-- **Custom Patterns**: User-defined regex patterns
-- **Performance Optimization**: Pattern compilation caching, fast matching
-
-#### Semantic Analyzer (Optional)
-- **Context Analysis**: Understanding of prompt context and intent
-- **Embedding Models**: Integration with ML models for semantic similarity
-- **Intent Classification**: Identification of malicious intent patterns
-- **Confidence Scoring**: ML-based confidence assessment
-
-#### Heuristic Analyzer
-- **Statistical Analysis**: Character entropy, frequency analysis
-- **Structural Analysis**: Text patterns, formatting anomalies
-- **Behavioral Analysis**: Request pattern analysis
-- **Anomaly Detection**: Deviation from normal patterns
-
-### 4. Risk Assessment Engine
-
-Combines results from all detection methods:
-
-- **Weighted Scoring**: Different weights for different threat types
-- **Confidence Aggregation**: Combines confidence scores across methods
-- **Risk Level Mapping**: Maps scores to risk levels (None/Low/Medium/High/Critical)
-- **Threshold Application**: Applies configured severity thresholds
-
-### 5. Mitigation Engine
-
-Applies appropriate responses to detected threats:
-
-#### Text Sanitizer
-- **Pattern Removal**: Removes or replaces malicious patterns
-- **Encoding Neutralization**: Safely decodes and sanitizes encodings
-- **Content Filtering**: Removes potentially harmful content
-- **Safe Replacements**: Replaces threats with safe alternatives
-
-#### Strategy Selector
-- **Threat-Specific Strategies**: Different strategies for different threat types
-- **Configurable Responses**: Allow, Block, Sanitize, Warn, Custom
-- **Context-Aware Mitigation**: Considers threat context for appropriate response
-- **Runtime Strategy Updates**: Dynamic strategy modification
-
-### 6. Metrics & Monitoring
-
-Comprehensive observability and monitoring:
-
-#### Metrics Collector
-- **Performance Metrics**: Response times, throughput, resource usage
-- **Security Metrics**: Detection rates, threat type distribution
-- **Quality Metrics**: Confidence scores, false positive estimates
-- **Operational Metrics**: Error rates, availability
-
-#### Performance Monitor
-- **Real-time Monitoring**: Continuous performance tracking
-- **Alerting**: Configurable alerts for various conditions
-- **Trend Analysis**: Historical performance analysis
-- **Capacity Planning**: Resource usage forecasting
-
-## Data Flow
-
-### 1. Request Processing Flow
+## Component Map
 
 ```text
-Input Text → Preprocessing → Parallel Analysis → Risk Assessment → Mitigation → Response
-     ↓             ↓              ↓               ↓              ↓          ↓
-  Validation → Normalization → Pattern Match → Score Combine → Strategy → Final Result
-     ↓             ↓              ↓               ↓              ↓          ↓
-  Logging   → Encoding Detect → Semantic Analysis → Threshold → Apply → Metrics Update
-                    ↓              ↓               
-                Heuristic → Threat Classification
-```text
-
-### 2. Configuration Flow
-
-```text
-User Config → Validation → Component Update → Runtime Reload
-     ↓            ↓             ↓              ↓
-Schema Check → Error Handle → Pattern Compile → Active Config
-     ↓            ↓             ↓              ↓
-Default Merge → Config Store → Cache Update → Notification
-```text
-
-### 3. Metrics Flow
-
-```text
-Detection Result → Metrics Collector → Aggregation → Storage
-      ↓                 ↓                ↓           ↓
-  Performance Data → Real-time Stats → Analysis → Alerting
-      ↓                 ↓                ↓           ↓
-  Security Events → Alert Conditions → Monitoring → Notification
+application
+    |
+    v
+FluxPrompt
+    |-- DetectionEngine
+    |     |-- preprocessing
+    |     |-- PatternMatcher
+    |     |-- HeuristicAnalyzer
+    |     `-- SemanticAnalyzer (optional keyword/structure checks)
+    |-- MitigationEngine
+    |     `-- TextSanitizer
+    `-- MetricsCollector
 ```
 
-## Concurrency & Threading
+The main modules are:
 
-### Thread Safety
-- **Immutable Configurations**: Configurations are immutable once created
-- **Arc-based Sharing**: Shared components use Arc for safe concurrent access
-- **Lock-free Operations**: Metrics collection uses atomic operations
-- **Async/Await**: Full async support for non-blocking operations
+| Module | Responsibility |
+| --- | --- |
+| `lib` | `FluxPrompt` lifecycle, orchestration, shared state, and top-level API |
+| `config` | Runtime configuration, security levels, response strategies, and builder |
+| `detection` | Pattern, heuristic, optional semantic, decoding, aggregation, and scoring logic |
+| `mitigation` | Response text and heuristic sanitization for flagged inputs |
+| `types` | Risk, threat, span, preprocessing, and analysis result types |
+| `metrics` | In-process counters, breakdowns, confidence observations, and latency samples |
+| `presets` | Built-in starting `DetectionConfig` values |
+| `custom_config` | Serializable configuration wrapper and advanced metadata |
+| `config_builder` | Builder for `CustomConfig` and its metadata |
+| `features` | Serializable feature descriptors used by custom configurations |
 
-### Performance Optimization
-- **Parallel Detection**: Multiple detection methods run concurrently
-- **Pattern Compilation Caching**: Compiled regex patterns are cached
-- **Connection Pooling**: Reuse of expensive resources
-- **Memory Management**: Efficient memory usage with proper cleanup
+## Construction
 
-### Resource Management
-- **Semaphore-based Limiting**: Concurrent request limiting
-- **Timeout Handling**: Configurable timeouts for all operations
-- **Memory Bounds**: Configurable memory limits for safety
-- **Graceful Degradation**: System continues operating under high load
+`FluxPrompt::new` clones the supplied `DetectionConfig` into its components:
 
-## Extensibility
+1. `DetectionConfig::validate` checks runtime invariants.
+2. `PatternMatcher` compiles the selected built-in and custom regular expressions.
+3. `SemanticAnalyzer` is allocated only when `semantic_config.enabled` is true.
+4. `HeuristicAnalyzer` receives a configuration clone.
+5. `MitigationEngine` constructs a `TextSanitizer`.
+6. `MetricsCollector` starts with empty in-memory state.
 
-### Custom Detection Methods
-- **Plugin Architecture**: Support for custom detection plugins
-- **Custom Patterns**: User-defined regex patterns
-- **External Models**: Integration with external ML models
-- **API Extensions**: Custom analysis methods
+Construction is async because the public component APIs are async. The current implementation does not perform model downloads or network I/O during construction.
 
-### Custom Mitigation Strategies
-- **Strategy Plugins**: Custom mitigation strategies
-- **Template System**: Configurable response templates
-- **External Services**: Integration with external security services
-- **Policy Engines**: Complex rule-based policies
+`FluxPrompt::from_preset` converts a `Preset` to a `DetectionConfig`. `from_custom_config` extracts the embedded `detection_config`. `from_file` reads JSON or YAML into a `CustomConfig` and then follows the same path.
 
-### Configuration Extensions
-- **Domain-specific Configs**: Specialized configurations for different domains
-- **Environment Profiles**: Different configurations for different environments
-- **Dynamic Updates**: Runtime configuration updates
-- **Configuration Validation**: Schema-based configuration validation
+## Analysis Flow
 
-## Security Considerations
+`FluxPrompt::analyze` delegates to `DetectionEngine::analyze` and then, when the result is flagged, asks `MitigationEngine` to produce text:
 
-### Input Validation
-- **Length Limits**: Configurable input length limits
-- **Character Filtering**: Removal of control characters
-- **Encoding Validation**: Safe handling of various encodings
-- **Schema Validation**: Strict input format validation
+```text
+input text
+   |
+   +-- empty? ------------------------------> internal not-flagged result
+   |
+   +-- over max byte length? ---------------> InvalidInput error
+   |
+   v
+configured preprocessing
+   |
+   v
+pattern checks -> heuristic checks -> optional keyword/structure checks
+   |
+   v
+decoded-variant pattern checks -> combination/context adjustments
+   |
+   v
+risk score and configured threshold
+   |
+   +-- not flagged -------------------------> result, no mitigation text
+   |
+   `-- flagged -> response strategy --------> result + mitigation text
+                                                    |
+                                                    v
+                                 metrics recording when enabled
+```
 
-### Attack Surface Minimization
-- **Minimal Dependencies**: Reduced external dependencies
-- **Safe Defaults**: Secure default configurations
-- **Principle of Least Privilege**: Minimal required permissions
-- **Input Sanitization**: Comprehensive input cleaning
+The analysis stages currently run in sequence under a Tokio timeout wrapper. That timeout is cooperative: CPU-bound stages that do not yield cannot be preempted and may run past the configured duration. Async methods make integration with Tokio services convenient, but do not imply concurrent detection or a hard wall-clock bound.
 
-### Privacy Protection
-- **Data Minimization**: Only necessary data is processed
-- **Secure Logging**: Sensitive data is not logged
-- **Memory Clearing**: Sensitive data is cleared from memory
-- **Compliance Support**: GDPR, HIPAA compliance features
+## Detection Components
 
-## Deployment Patterns
+### Pattern Matcher
 
-### Standalone Service
-- Self-contained detection service
-- REST API interface
-- Docker containerization
-- Kubernetes deployment
+Built-in rules are grouped into named categories. A security level selects the default categories unless `PatternConfig::enabled_categories` is provided. Custom regexes are compiled into a separate category.
 
-### Library Integration
-- Direct library embedding
-- Minimal overhead
-- Custom configuration
-- Application-specific optimization
+The matcher configures case-insensitive regexes by default and records the first match for each matching regex. The engine retains `TextSpan` values only when they can be verified against the caller's unchanged input; it omits them and records provenance metadata after coordinate-changing preprocessing or decoded-variant analysis.
 
-### Microservice Architecture
-- Service mesh integration
-- Load balancer support
-- Health check endpoints
-- Distributed tracing
+### Heuristic Analyzer
 
-### Edge Deployment
-- Lightweight deployment
-- Reduced latency
-- Local processing
-- Offline capability
+The heuristic analyzer inspects entropy, repetition, text structure, selected linguistic markers, and encoding-like content. It adjusts some signals when text appears benign. These rules are deterministic implementation heuristics; their confidence values are not calibrated probabilities.
 
-## Performance Characteristics
+### Optional Semantic Analyzer
 
-### Latency
-- **Target Response Time**: < 10ms for simple patterns
-- **P95 Response Time**: < 50ms under normal load
-- **P99 Response Time**: < 100ms under normal load
-- **Timeout Handling**: Configurable timeouts with graceful degradation
+The type currently named `SemanticAnalyzer` performs phrase, keyword, and structure checks. It does not load embeddings, use the configured `model_name`, or make a model request. It is disabled by default.
 
-### Throughput
-- **Target Throughput**: > 1,000 requests/second per core
-- **Scaling**: Linear scaling with CPU cores
-- **Memory Usage**: < 512MB base memory usage
-- **Connection Handling**: Support for high concurrent connections
+### Preprocessing and Decoding
 
-### Resource Usage
-- **CPU Usage**: Optimized for low CPU overhead
-- **Memory Usage**: Bounded memory with configurable limits
-- **Network Usage**: Minimal network overhead for standalone mode
-- **Storage Usage**: Optional persistent storage for metrics
+Preprocessing can remove most control characters and apply limited URL/Base64 decoding. The engine also creates a bounded set of decoded variants for pattern re-analysis. This is not canonical parsing of every encoding or Unicode normalization form.
 
-This architecture provides a robust, scalable, and maintainable foundation for prompt injection detection while maintaining high performance and security standards.
+See [detection methods](detection_methods.md) for implemented details and limitations.
+
+## Scoring and Decisions
+
+Each threat has a type and confidence value. The engine applies type weights, security-level scaling, category adjustments, threat-diversity bonuses, and configured thresholds to derive a `RiskLevel`.
+
+`RiskLevel::is_injection` returns true for `Medium`, `High`, and `Critical`; `Low` is not treated as a detected injection by that method. Confidence is the maximum adjusted signal confidence, not the final risk score and not a statistical probability.
+
+The exact scoring formula is implementation detail and may change before a stable release. Integrations should branch on documented result methods rather than duplicate thresholds.
+
+## Mitigation Is Data, Not Enforcement
+
+For flagged input, the mitigation engine returns a string based on `ResponseStrategy`. `FluxPrompt` places that string in `PromptAnalysis::mitigated_prompt`. Localized sanitization uses only verified spans with valid UTF-8 boundaries and matching content, then applies broader cleanup; threats without a trustworthy span require non-local transformations.
+
+The library does not cancel downstream work, erase the caller's original buffer, or prevent another component from sending the original input. The host application owns the enforcement branch. Sanitized output is also untrusted and should be validated before use.
+
+## Concurrency and State
+
+`FluxPrompt` is cloneable. Clones share detection, mitigation, and metrics components through `Arc`; metrics use concurrent maps and atomic counters behind an async lock at the top level.
+
+`update_config` requires `&mut self` and replaces the detection and mitigation engines on that instance. Existing clones continue using the engines they already hold, while the metrics collector remains shared. For atomic service-wide policy changes, construct a new detector and swap it using application-level coordination.
+
+The current runtime does not enforce `max_concurrent_analyses`, `max_memory_mb`, `pattern_cache_size`, custom-config rate limits, or role/context rules. Apply those controls around the library.
+
+## I/O and Data Retention
+
+Normal analysis is local and performs no network I/O. `CustomConfig::load_from_file` and `save_to_file` are the file-system entry points. The Ollama example performs network requests, but that behavior is outside the library.
+
+Metrics retain aggregate counters and a rolling set of timing/confidence observations in memory. FluxPrompt does not intentionally store complete prompt bodies in metrics. Application tracing and error handling can still expose sensitive data if configured carelessly; see [security guidelines](security_guidelines.md).
+
+## Extension Boundaries
+
+Detector traits are not currently exposed as a stable plug-in interface. Extension is primarily through custom regular expressions and configuration. Adding a new built-in detector requires a source change in `src/detection` and corresponding tests, threat-model updates, and calibration evidence.

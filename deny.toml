@@ -12,7 +12,7 @@ targets = [
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-yanked = "warn"
+yanked = "deny"
 ignore = []
 
 [licenses]
@@ -20,11 +20,6 @@ ignore = []
 allow = [
     "MIT",
     "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
-    "BSD-3-Clause",
-    "ISC",
-    "Unicode-DFS-2016",
-    "MPL-2.0",  # Required by colored crate
     "Unicode-3.0",  # Required by unicode-ident crate
 ]
 confidence-threshold = 0.8
@@ -39,8 +34,8 @@ license-files = [
 ]
 
 [bans]
-multiple-versions = "warn"
-wildcards = "allow"
+multiple-versions = "deny"
+wildcards = "deny"
 highlight = "all"
 workspace-default-features = "allow"
 external-default-features = "allow"
@@ -51,16 +46,17 @@ deny = [
     # { name = "openssl", version = "*" },  # Prefer native-tls or rustls
 ]
 
-# Skip certain crates when checking for duplicates
+# Required transitive version splits. Keep these exact so new duplication fails CI.
 skip = [
-    # { name = "winapi", version = "0.2.8" },
+    { name = "hashbrown", version = "0.14.5", reason = "dashmap 6 uses hashbrown 0.14 while indexmap uses 0.17" },
+    { name = "syn", version = "2.0.119", reason = "several stable proc-macro dependencies have not migrated to syn 3" },
 ]
 
 # Similarly named crates that are allowed to coexist
 skip-tree = []
 
 [sources]
-unknown-registry = "warn"
-unknown-git = "warn"
+unknown-registry = "deny"
+unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = []

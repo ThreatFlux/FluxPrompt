@@ -13,13 +13,13 @@ pub enum RiskLevel {
     /// No risk detected
     #[default]
     None = 0,
-    /// Low risk - suspicious patterns but likely benign
+    /// Low detector score; not treated as detected by `is_injection`
     Low = 1,
-    /// Medium risk - potential injection attempt
+    /// Medium detector score
     Medium = 2,
-    /// High risk - likely injection attempt
+    /// High detector score
     High = 3,
-    /// Critical risk - definite injection attempt
+    /// Highest detector score category
     Critical = 4,
 }
 
@@ -151,7 +151,7 @@ impl TextSpan {
 
     /// Returns the length of the span.
     pub fn len(&self) -> usize {
-        self.end - self.start
+        self.end.saturating_sub(self.start)
     }
 
     /// Returns true if the span is empty.
@@ -214,10 +214,11 @@ pub struct PromptAnalysis {
 impl PromptAnalysis {
     /// Creates a new prompt analysis.
     pub fn new(detection_result: DetectionResult, mitigated_prompt: Option<String>) -> Self {
+        let analysis_duration = Duration::from_millis(detection_result.analysis_duration_ms());
         Self {
             id: Uuid::new_v4(),
             timestamp: SystemTime::now(),
-            analysis_duration: Duration::from_millis(0), // Will be set by the analyzer
+            analysis_duration,
             detection_result,
             mitigated_prompt,
             metadata: HashMap::new(),
@@ -267,13 +268,15 @@ impl PromptAnalysis {
 /// Configuration for text preprocessing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PreprocessingConfig {
-    /// Whether to normalize unicode characters
+    /// Whether to filter most control characters.
+    ///
+    /// The current implementation does not perform Unicode normalization.
     pub normalize_unicode: bool,
-    /// Whether to decode common encodings
+    /// Whether to apply limited URL and Base64 decoding
     pub decode_encodings: bool,
-    /// Maximum text length to analyze
+    /// Maximum input length in bytes
     pub max_length: usize,
-    /// Whether to preserve original formatting
+    /// Requested formatting-preservation behavior; not currently consumed
     pub preserve_formatting: bool,
 }
 
@@ -352,10 +355,18 @@ mod tests {
     fn test_prompt_analysis_creation() {
         use crate::detection::DetectionResult;
 
-        let detection_result = DetectionResult::safe();
+        let detection_result = DetectionResult::new(RiskLevel::None, 1.0, Vec::new(), 42);
         let analysis = PromptAnalysis::new(detection_result, None);
 
         assert!(!analysis.is_injection_detected());
         assert_eq!(analysis.risk_level(), RiskLevel::None);
+        assert_eq!(analysis.analysis_duration, Duration::from_millis(42));
+    }
+
+    #[test]
+    fn test_reversed_text_span_has_zero_length() {
+        let span = TextSpan::new(8, 3, String::new());
+        assert_eq!(span.len(), 0);
+        assert!(span.is_empty());
     }
 }

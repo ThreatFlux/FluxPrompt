@@ -1,8 +1,8 @@
-//! Advanced configuration builder API for FluxPrompt custom configurations.
+//! Builder API for serializable [`crate::CustomConfig`] values.
 //!
-//! This module provides a fluent builder API that allows users to create fully
-//! customized configurations with granular control over all aspects of prompt
-//! injection detection and mitigation.
+//! Runtime behavior comes from the embedded [`crate::DetectionConfig`]. Feature
+//! descriptors and advanced options can be represented here but are not
+//! independently enforced by [`crate::FluxPrompt`].
 
 use std::time::Duration;
 
@@ -17,7 +17,7 @@ use crate::features::{Features, FeaturesBuilder};
 use crate::presets::Preset;
 use crate::types::PreprocessingConfig;
 
-/// Builder for creating comprehensive custom configurations.
+/// Builder for creating serializable custom configurations.
 #[derive(Debug)]
 pub struct CustomConfigBuilder {
     config: CustomConfig,
@@ -112,6 +112,7 @@ impl CustomConfigBuilder {
     /// Sets the security level (0-10 scale).
     pub fn with_security_level(mut self, level: u8) -> Result<Self, String> {
         self.config.detection_config.security_level = SecurityLevel::new(level)?;
+        self.config.detection_config.severity_level = None;
         self.config.touch();
         Ok(self)
     }
@@ -199,8 +200,11 @@ impl CustomConfigBuilder {
         threat_type: S,
         weight: f32,
     ) -> Result<Self, String> {
-        if weight < 0.0 {
-            return Err(format!("Weight must be non-negative, got: {}", weight));
+        if !weight.is_finite() || weight < 0.0 {
+            return Err(format!(
+                "Weight must be finite and non-negative, got: {}",
+                weight
+            ));
         }
         self.config
             .advanced_options
@@ -299,7 +303,9 @@ impl CustomConfigBuilder {
 
     // Semantic Analysis Configuration
 
-    /// Enables semantic analysis with optional model name.
+    /// Enables heuristic semantic analysis with an optional model label.
+    ///
+    /// The built-in analyzer stores the label but does not load a model.
     pub fn enable_semantic_analysis(mut self, model_name: Option<String>) -> Self {
         self.config.detection_config.semantic_config.enabled = true;
         self.config.detection_config.semantic_config.model_name = model_name;
@@ -309,7 +315,7 @@ impl CustomConfigBuilder {
 
     /// Sets the semantic similarity threshold.
     pub fn semantic_threshold(mut self, threshold: f32) -> Result<Self, String> {
-        if threshold <= 0.0 || threshold > 1.0 {
+        if !threshold.is_finite() || threshold <= 0.0 || threshold > 1.0 {
             return Err(format!(
                 "Semantic threshold must be between 0.0 and 1.0, got: {}",
                 threshold
@@ -335,7 +341,10 @@ impl CustomConfigBuilder {
 
     // Resource Configuration
 
-    /// Sets the analysis timeout.
+    /// Sets the cooperative timeout around the analysis future.
+    ///
+    /// CPU-bound stages that do not yield cannot be preempted, so this is not
+    /// a hard wall-clock limit.
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.config
             .detection_config
@@ -345,7 +354,9 @@ impl CustomConfigBuilder {
         self
     }
 
-    /// Sets the maximum number of concurrent analyses.
+    /// Stores a requested concurrency limit for the host application.
+    ///
+    /// FluxPrompt does not currently enforce this field.
     pub fn max_concurrent_analyses(mut self, max: usize) -> Self {
         self.config
             .detection_config
@@ -355,14 +366,18 @@ impl CustomConfigBuilder {
         self
     }
 
-    /// Sets the maximum memory usage in MB.
+    /// Stores a requested memory limit in MB for the host application.
+    ///
+    /// FluxPrompt does not currently enforce this field.
     pub fn max_memory_mb(mut self, max_memory: usize) -> Self {
         self.config.detection_config.resource_config.max_memory_mb = max_memory;
         self.config.touch();
         self
     }
 
-    /// Sets the pattern cache size.
+    /// Stores requested pattern-cache metadata.
+    ///
+    /// FluxPrompt does not currently enforce this field.
     pub fn pattern_cache_size(mut self, cache_size: usize) -> Self {
         self.config
             .detection_config
@@ -374,7 +389,7 @@ impl CustomConfigBuilder {
 
     // Advanced Configuration Methods
 
-    /// Configures rate limiting.
+    /// Configures rate-limit metadata for a host application.
     pub fn configure_rate_limiting<F>(mut self, configure: F) -> Self
     where
         F: FnOnce(&mut RateLimitConfig),
@@ -384,7 +399,7 @@ impl CustomConfigBuilder {
         self
     }
 
-    /// Sets rate limiting parameters.
+    /// Sets rate-limit metadata for a host application.
     pub fn with_rate_limits(mut self, per_minute: u32, per_hour: u32, per_day: u32) -> Self {
         self.config
             .advanced_options
@@ -554,43 +569,43 @@ impl CustomConfigBuilder {
         Self::from_preset(preset)
     }
 
-    /// Creates a builder optimized for high performance.
+    /// Creates the builder historically named `high_performance`.
+    ///
+    /// The name is not a measured performance claim.
     pub fn high_performance() -> Self {
         Self::from_preset(Preset::Development)
-            .with_name("High Performance Configuration".to_string())
-            .with_description("Optimized for speed and low resource usage".to_string())
-            .configure_features(|f| {
-                f.with_semantic_detection(false)
-                    .with_heuristic_analysis(false)
-            })
-            .max_concurrent_analyses(500)
+            .with_name("Development Starting Configuration".to_string())
+            .with_description(
+                "Historical high_performance builder; benchmark and calibrate for your workload"
+                    .to_string(),
+            )
             .with_timeout(Duration::from_secs(1))
-            .max_memory_mb(128)
     }
 
-    /// Creates a builder optimized for maximum security.
+    /// Creates the builder historically named `maximum_security`.
+    ///
+    /// The name is not an assurance level.
     pub fn maximum_security() -> Self {
         Self::from_preset(Preset::Financial)
-            .with_name("Maximum Security Configuration".to_string())
+            .with_name("Sensitive Blocking Starting Configuration".to_string())
             .with_description(
-                "Comprehensive security with all detection methods enabled".to_string(),
+                "Historical maximum_security builder; calibrate before deployment".to_string(),
             )
-            .configure_features(|_f| FeaturesBuilder::from_base(Features::all_enabled()))
-            .enable_semantic_analysis(Some("sentence-transformers/all-MiniLM-L6-v2".to_string()))
+            .enable_semantic_analysis(None)
             .with_timeout(Duration::from_secs(30))
-            .max_memory_mb(2048)
     }
 
-    /// Creates a builder balanced for production use.
+    /// Creates the builder historically named `production_ready`.
+    ///
+    /// Callers must validate and calibrate the result for their deployment.
     pub fn production_ready() -> Self {
         Self::from_preset(Preset::ChatBot)
-            .with_name("Production Configuration".to_string())
+            .with_name("Chat Application Starting Configuration".to_string())
             .with_description(
-                "Balanced configuration suitable for production environments".to_string(),
+                "Historical production_ready builder; validate against application requirements"
+                    .to_string(),
             )
-            .max_concurrent_analyses(200)
             .with_timeout(Duration::from_secs(5))
-            .with_rate_limits(120, 2000, 20000) // Generous but controlled
             .enable_metrics(true)
     }
 }
@@ -711,6 +726,19 @@ mod tests {
         // Invalid weight (< 0.0)
         let result = CustomConfigBuilder::new().override_threat_weight("test", -1.0);
         assert!(result.is_err());
+
+        for invalid in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            assert!(
+                CustomConfigBuilder::new()
+                    .override_threat_weight("test", invalid)
+                    .is_err()
+            );
+            assert!(
+                CustomConfigBuilder::new()
+                    .semantic_threshold(invalid)
+                    .is_err()
+            );
+        }
 
         // Invalid sensitivity (> 10)
         let result = CustomConfigBuilder::new().set_category_sensitivity("test", 11);
@@ -915,30 +943,28 @@ mod tests {
     #[test]
     fn test_specialized_builders() {
         let high_perf = CustomConfigBuilder::high_performance().build();
-        assert!(high_perf.name.contains("High Performance"));
-        assert!(!high_perf.features.semantic_detection);
+        assert_eq!(high_perf.name, "Development Starting Configuration");
         assert_eq!(
             high_perf.detection_config.resource_config.analysis_timeout,
             Duration::from_secs(1)
         );
 
         let max_security = CustomConfigBuilder::maximum_security().build();
-        assert!(max_security.name.contains("Maximum Security"));
-        assert!(max_security.detection_config.semantic_config.enabled);
         assert_eq!(
-            max_security.detection_config.resource_config.max_memory_mb,
-            2048
+            max_security.name,
+            "Sensitive Blocking Starting Configuration"
+        );
+        assert!(max_security.detection_config.semantic_config.enabled);
+        assert!(
+            max_security
+                .detection_config
+                .semantic_config
+                .model_name
+                .is_none()
         );
 
         let production = CustomConfigBuilder::production_ready().build();
-        assert!(production.name.contains("Production"));
-        assert_eq!(
-            production
-                .advanced_options
-                .rate_limiting
-                .requests_per_minute,
-            120
-        );
+        assert_eq!(production.name, "Chat Application Starting Configuration");
         assert!(production.detection_config.enable_metrics);
     }
 

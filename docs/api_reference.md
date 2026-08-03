@@ -1,174 +1,134 @@
-# FluxPrompt API Reference
+# API Reference
 
-This page is the stable map to FluxPrompt's public API. For exhaustive item-level documentation, generate rustdoc locally with:
+This page maps the public API by task. Generated rustdoc is the item-level reference:
 
 ```bash
-cargo doc --no-deps --all-features
+cargo doc --no-deps --open
 ```
 
-Use this document to understand the main entry points and when to reach for each type.
+Released API documentation is available on [docs.rs](https://docs.rs/fluxprompt). Generate documentation locally when reviewing an unreleased Git revision.
 
-## Primary Entry Points
+## Main Detector
 
 ### `FluxPrompt`
 
-`FluxPrompt` is the main async interface for analyzing prompts and retrieving metrics.
+`FluxPrompt` is the top-level async interface.
 
-Key constructors:
+| Method | Purpose | Important behavior |
+| --- | --- | --- |
+| `new(config)` | Construct from `DetectionConfig` | Validates the config before compiling regexes |
+| `from_preset(preset)` | Construct from a built-in preset | Presets are starting values, not assurance profiles |
+| `from_custom_config(config)` | Construct from `CustomConfig` | Consumes only its embedded `detection_config` at runtime |
+| `from_file(path)` | Deserialize JSON/YAML and construct | Validates through `from_custom_config` |
+| `analyze(prompt)` | Analyze one string | Uses a cooperative Tokio timeout and, when `enable_metrics` is `true`, records metrics on success; CPU-bound stages are not preempted |
+| `config()` | Borrow the current configuration | Reflects the config on this detector instance |
+| `metrics()` | Snapshot in-process observations | Contains detector outcomes, not ground-truth accuracy |
+| `update_config(config)` | Rebuild engines on this instance | Existing clones keep their previous engine arcs |
 
-- `FluxPrompt::new(config)`: start from a `DetectionConfig`
-- `FluxPrompt::from_preset(preset)`: start from an opinionated `Preset`
-- `FluxPrompt::from_custom_config(custom_config)`: use a `CustomConfig`
-- `FluxPrompt::from_file(path)`: load a JSON or YAML custom config from disk
-
-Key methods:
-
-- `analyze(&self, prompt) -> Result<PromptAnalysis>`
-- `config(&self) -> &DetectionConfig`
-- `metrics(&self) -> DetectionMetrics`
-- `update_config(&mut self, config) -> Result<()>`
-
-Minimal example:
+For explicit validation:
 
 ```rust
-use fluxprompt::{DetectionConfig, FluxPrompt, ResponseStrategy};
+use fluxprompt::{DetectionConfig, FluxPrompt};
 
-# #[tokio::main]
-# async fn main() -> Result<(), Box<dyn std::error::Error>> {
-let config = DetectionConfig::builder()
-    .with_security_level(7)?
-    .with_response_strategy(ResponseStrategy::Block)
-    .build();
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = DetectionConfig::default();
+    config.validate()?;
+    let detector = FluxPrompt::new(config).await?;
 
-let detector = FluxPrompt::new(config).await?;
-let analysis = detector.analyze("Ignore all previous instructions").await?;
-
-if analysis.is_injection_detected() {
-    println!("Risk level: {}", analysis.risk_level());
+    println!("level: {}", detector.config().effective_security_level());
+    Ok(())
 }
-# Ok(())
-# }
 ```
 
-## Configuration APIs
+## Configuration
 
 ### `DetectionConfig`
 
-`DetectionConfig` is the main runtime configuration type. It includes:
+`DetectionConfig` is the runtime configuration. Key methods are:
 
-- `security_level`: preferred 0-10 tuning API
-- `severity_level`: legacy compatibility layer
-- `response_strategy`
-- `pattern_config`
-- `semantic_config`
-- `preprocessing_config`
-- `resource_config`
-- `enable_metrics`
-- `custom_config`
+- `default()`
+- `builder()`
+- `validate()`
+- `effective_security_level()`
 
-Important methods:
+The builder supports security/severity levels, response strategy, custom regexes, optional semantic checks, timeout, metrics metadata, and custom key/value metadata. `build()` does not validate.
 
-- `DetectionConfig::default()`
-- `DetectionConfig::builder()`
-- `DetectionConfig::validate()`
-- `DetectionConfig::effective_security_level()`
+Nested public configuration types live in `fluxprompt::config` and `fluxprompt::types`:
 
-### `DetectionConfigBuilder`
+- `PatternConfig`
+- `SemanticConfig`
+- `ResourceConfig`
+- `PreprocessingConfig`
+- `DetectionConfigBuilder`
 
-Use the builder when you want to stay on the lightweight configuration path.
+See [configuration](configuration.md) for which fields are currently enforced.
 
-Common methods:
+### `SecurityLevel`
 
-- `with_security_level(level)`
-- `with_security_level_struct(level)`
-- `with_severity_level(level)`
-- `with_response_strategy(strategy)`
-- `with_custom_patterns(patterns)`
-- `enable_semantic_analysis(enabled)`
-- `with_timeout(duration)`
-- `enable_metrics(enabled)`
-- `with_custom_config(key, value)`
-- `build()`
+`SecurityLevel::new(u8)` accepts 0 through 10. It exposes current threshold/weight calculations and enabled category names. Higher levels are more sensitive, not objectively “more secure.”
 
-### `SecurityLevel` and `SeverityLevel`
+### `SeverityLevel`
 
-- `SecurityLevel` is the preferred tuning model and represents a granular 0-10 scale.
-- `SeverityLevel` is retained for backward compatibility and maps onto `SecurityLevel`.
-
-If you are starting new work, prefer `SecurityLevel`.
+`SeverityLevel` is the legacy four-level API. Prefer `SecurityLevel` for new integrations. The builder maps a legacy value to `security_level` when no explicit security level is set; runtime decisions use `security_level`.
 
 ### `ResponseStrategy`
 
-`ResponseStrategy` defines what FluxPrompt does when an injection is detected:
+`ResponseStrategy` controls mitigation text for detected input:
 
-- `Allow`
-- `Block`
-- `Sanitize`
-- `Warn`
-- `Custom(String)`
+- `Allow`: warning prefix plus original text;
+- `Block`: generated block message;
+- `Sanitize`: heuristic transformation;
+- `Warn`: generated warning message;
+- `Custom(String)`: exact configured message.
+
+It does not enforce control flow. The application must stop or alter the downstream operation.
 
 ### `Preset`
 
-`Preset` is the fastest way to start from a domain-oriented baseline. Current presets include:
+Current variants are `ChatBot`, `CodeAssistant`, `CustomerService`, `Educational`, `Financial`, `Healthcare`, `Development`, and `Custom`.
 
-- `ChatBot`
-- `CodeAssistant`
-- `CustomerService`
-- `Educational`
-- `Financial`
-- `Healthcare`
-- `Development`
-- `Custom`
+Presets select implementation defaults for thresholds, patterns, response text, preprocessing, and timeout. Their names do not claim domain compliance, measured accuracy, or suitability without application validation.
 
-Use `FluxPrompt::from_preset(...)` when you want a sane default profile before adding custom rules.
+### `CustomConfig` and `CustomConfigBuilder`
 
-### `CustomConfigBuilder` and `CustomConfig`
+`CustomConfigBuilder` creates named, serializable configs. Notable paths include:
 
-Reach for `CustomConfigBuilder` when you need more than the basic builder offers. It supports:
+- `new()` and `from_preset(...)`;
+- identity methods such as `with_name`, `with_description`, `with_version`, and tags;
+- core methods such as `with_security_level`, `with_response_strategy`, custom patterns, semantic settings, timeout, and preprocessing;
+- advanced metadata methods for features, thresholds, roles, locales, context, and rate limits;
+- `build()` and `build_validated()`.
 
-- metadata and naming
-- feature toggles
-- category thresholds and threat weights
-- allowlists and denylists
-- semantic-model settings
-- resource limits and preprocessing controls
-- rate limiting, locale, role, and context-aware options
+`CustomConfig` supports:
 
-Common entry points:
+- `validate()`;
+- `to_json()` / `from_json(...)`;
+- `to_yaml()` / `from_yaml(...)`;
+- `save_to_file(path)` / `load_from_file(path)`;
+- `merge_with(...)`, `summary()`, `touch()`, and `clone_with_name(...)`.
 
-- `CustomConfigBuilder::new()`
-- `CustomConfigBuilder::from_preset(...)`
-- `CustomConfigBuilder::for_use_case(...)`
-- `CustomConfigBuilder::high_performance()`
-- `build()`
-- `build_validated()`
+Deserialization does not validate automatically. `Features` and most `AdvancedOptions` are currently descriptors only; `FluxPrompt::from_custom_config` does not wire them into analysis. Read [configuration](configuration.md) before relying on them.
 
-`CustomConfig` can be serialized and loaded with:
-
-- `to_json()` / `from_json(...)`
-- `to_yaml()` / `from_yaml(...)`
-- `save_to_file(path)` / `load_from_file(path)`
-
-## Analysis Results
+## Results
 
 ### `PromptAnalysis`
 
-`PromptAnalysis` is returned by `FluxPrompt::analyze`. It contains the top-level result plus optional mitigated output.
-
-Common methods:
+Returned by `FluxPrompt::analyze`. Useful methods:
 
 - `detection_result()`
 - `mitigated_prompt()`
 - `is_injection_detected()`
 - `risk_level()`
 - `threat_types()`
-- `add_metadata(key, value)`
+- `add_metadata(...)`
+- `set_duration(...)`
+
+The public fields also include a generated ID, timestamp, embedded `DetectionResult`, optional mitigation text, and metadata. `PromptAnalysis::analysis_duration` is initialized from the engine duration recorded in `DetectionResult`.
 
 ### `DetectionResult`
 
-`DetectionResult` is the lower-level detection-engine output embedded inside `PromptAnalysis`.
-
-Common methods:
+The lower-level result provides:
 
 - `is_injection_detected()`
 - `risk_level()`
@@ -178,49 +138,40 @@ Common methods:
 - `threat_types()`
 - `highest_confidence_threat()`
 
-### Threat Modeling Types
+`DetectionResult::safe()` uses `RiskLevel::None`, no threats, and confidence `1.0`. Here that confidence represents the result's internal convention; it is not a measured probability that input is safe.
 
-These types describe what was detected and how severe it is:
+### Threat Types
 
-- `RiskLevel`
-- `ThreatType`
-- `ThreatInfo`
-- `TextSpan`
+`RiskLevel` values are `None`, `Low`, `Medium`, `High`, and `Critical`. The `is_injection` helper returns true for `Medium` and above.
 
-`ThreatType` includes categories such as `InstructionOverride`, `RolePlaying`, `ContextConfusion`, `EncodingBypass`, `Jailbreak`, `SocialEngineering`, `DataExtraction`, `SystemPromptLeak`, and `CodeInjection`.
+`ThreatType` values include instruction override, role playing, context confusion, encoding bypass, jailbreak, social engineering, data extraction, system prompt leak, code injection, and `Custom(String)`.
 
-## Mitigation and Metrics
+`fluxprompt::types::ThreatInfo` contains the type, confidence, optional `TextSpan`, and metadata. Returned spans index the original input only when coordinates remain trustworthy; preprocessing and decoded-variant analysis omit spans and add provenance metadata instead.
 
-### Mitigation
+## Metrics
 
-Relevant public types:
+`FluxPrompt::metrics()` returns a `DetectionMetrics` snapshot with counters, outcome breakdowns, confidence summaries, and latency observations. `detection_rate_percentage()` reports the share of analyzed requests the detector flagged.
 
-- `MitigationEngine`
-- `MitigationStrategy`
+It is not an accuracy measurement because the collector has no ground-truth labels. `estimated_false_positive_rate()` currently returns `None`.
 
-These types are useful if you need to reason about or extend how flagged content is handled after detection.
+Metrics are process-local and reset when the detector/collector is dropped. Set `DetectionConfig::enable_metrics` to `false` to skip recording. Custom threat names are aggregated under the stable `Custom` label so caller-controlled names cannot create unbounded metric cardinality or leak into metric keys.
 
-### Metrics
+`MetricsCollector` is public for integrations that need a separate collector. Record, snapshot, and reset operations are serialized so a snapshot does not combine pre-reset counters with post-reset samples. Its `reset()` method clears accumulated state.
 
-Relevant public types:
+## Lower-Level Detection and Mitigation
 
-- `DetectionMetrics`
-- `MetricsCollector`
+The crate publicly exposes:
 
-`DetectionMetrics` exposes aggregate counters, timing statistics, confidence summaries, and percentile information. In most integrations you will access it through `FluxPrompt::metrics()`.
+- `DetectionEngine`, `PatternMatcher`, `HeuristicAnalyzer`, and `SemanticAnalyzer`;
+- `MitigationEngine`, `TextSanitizer`, and `MitigationStrategy`;
+- `ThreatContext` and `StrategySelector` through `fluxprompt::mitigation::strategies`.
+
+These APIs expose implementation details and may change during `0.2.x`. Prefer `FluxPrompt` unless you need direct component-level testing.
+
+`MitigationStrategy::removes_threat()` is a classification of transformation variants (`Remove` or `Replace`), not a guarantee that an attack has been neutralized.
 
 ## Errors
 
-Public error handling is exposed through:
+`FluxPromptError` includes configuration, detection, mitigation, regex compilation, I/O, serialization, runtime timeout, invalid-input, resource-limit, and internal variants. The crate-level `Result<T>` alias uses this error.
 
-- `FluxPromptError`
-- `Result<T>`
-
-Use these types for application-level error handling around configuration loading, timeouts, invalid inputs, and runtime detection failures.
-
-## Where To Read Next
-
-- [README.md](../README.md) for install and quick start
-- [architecture.md](architecture.md) for system structure
-- [detection_methods.md](detection_methods.md) for threat categories
-- [security_guidelines.md](security_guidelines.md) for deployment guidance
+Do not return raw internal errors or untrusted prompt content to end users. Map them to application-specific responses and retain only the diagnostic detail your security/privacy policy permits.
