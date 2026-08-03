@@ -421,13 +421,10 @@ mod tests {
                 .is_err()
         );
 
-        let path = std::env::temp_dir().join(format!(
-            "fluxprompt-invalid-config-{}.json",
-            uuid::Uuid::new_v4()
-        ));
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("invalid-config.json");
         custom.save_to_file(&path).unwrap();
         let result = FluxPrompt::from_file(&path).await;
-        let _ = std::fs::remove_file(&path);
         assert!(result.is_err());
     }
 

@@ -1,15 +1,13 @@
-#!/usr/bin/env python3
 """Verify that the crates.io archive contains only intentional files."""
 
 from __future__ import annotations
 
-import re
 # Cargo is a trusted developer tool invoked by this package contract check.
+import re
 import subprocess  # nosec B404
 import sys
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
-
 
 ROOT = Path(__file__).resolve().parents[1]
 GENERATED_FILES = {
@@ -116,7 +114,7 @@ def main() -> int:
         if path not in GENERATED_FILES | ROOT_FILES
         and not (
             path.startswith(ALLOWED_PREFIXES)
-            and (path.endswith(".rs") or path.endswith(".md"))
+            and path.endswith((".rs", ".md"))
         )
     )
     missing = sorted(REQUIRED_FILES - files)

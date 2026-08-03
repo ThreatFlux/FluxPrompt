@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Validate maintained Markdown links and the README quickstart copy."""
 
 from __future__ import annotations
@@ -7,7 +6,6 @@ import re
 import sys
 from pathlib import Path
 from urllib.parse import unquote
-
 
 ROOT = Path(__file__).resolve().parent.parent
 MARKDOWN_LINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
@@ -97,7 +95,7 @@ def check_quickstart() -> list[str]:
     if copied != source:
         return [
             "README.md: quickstart block differs from examples/basic_detection.rs; "
-            "update both together"
+            + "update both together"
         ]
     return []
 
