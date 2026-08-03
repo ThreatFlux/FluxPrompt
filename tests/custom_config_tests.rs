@@ -590,30 +590,28 @@ async fn test_custom_config_builder_use_case_builders() {
 #[tokio::test]
 async fn test_custom_config_builder_specialized_builders() {
     let high_perf = CustomConfigBuilder::high_performance().build();
-    assert!(high_perf.name.contains("Performance"));
-    assert!(!high_perf.features.semantic_detection);
+    assert_eq!(high_perf.name, "Development Starting Configuration");
     assert_eq!(
         high_perf.detection_config.resource_config.analysis_timeout,
         Duration::from_secs(1)
     );
 
     let max_security = CustomConfigBuilder::maximum_security().build();
-    assert!(max_security.name.contains("Security"));
-    assert!(max_security.detection_config.semantic_config.enabled);
     assert_eq!(
-        max_security.detection_config.resource_config.max_memory_mb,
-        2048
+        max_security.name,
+        "Sensitive Blocking Starting Configuration"
+    );
+    assert!(max_security.detection_config.semantic_config.enabled);
+    assert!(
+        max_security
+            .detection_config
+            .semantic_config
+            .model_name
+            .is_none()
     );
 
     let production = CustomConfigBuilder::production_ready().build();
-    assert!(production.name.contains("Production"));
-    assert_eq!(
-        production
-            .advanced_options
-            .rate_limiting
-            .requests_per_minute,
-        120
-    );
+    assert_eq!(production.name, "Chat Application Starting Configuration");
     assert!(production.detection_config.enable_metrics);
 }
 

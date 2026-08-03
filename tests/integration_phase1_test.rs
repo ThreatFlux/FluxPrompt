@@ -380,10 +380,9 @@ fn get_comprehensive_attack_dataset() -> Vec<(&'static str, &'static str)> {
 #[tokio::test]
 async fn test_phase1_detection_rate_improvement() {
     // Use Paranoid mode to get the most sensitive detection
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::Paranoid),
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::Paranoid)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -399,24 +398,20 @@ async fn test_phase1_detection_rate_improvement() {
     );
 
     for (category, attack) in &attack_dataset {
+        let preview: String = attack.chars().take(50).collect();
+        let ellipsis = if attack.chars().count() > 50 {
+            "..."
+        } else {
+            ""
+        };
         let result = engine.analyze(attack).await.unwrap();
 
         if result.is_injection_detected() {
             detected_count += 1;
-            println!(
-                "✅ Detected [{}]: {}{}",
-                category,
-                &attack[..attack.len().min(50)],
-                if attack.len() > 50 { "..." } else { "" }
-            );
+            println!("✅ Detected [{}]: {}{}", category, preview, ellipsis);
         } else {
             failed_detections.push((category, attack));
-            println!(
-                "❌ Missed [{}]: {}{}",
-                category,
-                &attack[..attack.len().min(50)],
-                if attack.len() > 50 { "..." } else { "" }
-            );
+            println!("❌ Missed [{}]: {}{}", category, preview, ellipsis);
         }
     }
 
@@ -520,10 +515,9 @@ async fn test_phase1_detection_rate_improvement() {
 
 #[tokio::test]
 async fn test_cascading_detection_improvements() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::Paranoid),
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::Paranoid)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -576,10 +570,9 @@ async fn test_cascading_detection_improvements() {
 
 #[tokio::test]
 async fn test_encoding_detection_improvements() {
-    let config = DetectionConfig {
-        severity_level: Some(SeverityLevel::High), // Even High mode should catch encodings
-        ..Default::default()
-    };
+    let config = DetectionConfig::builder()
+        .with_severity_level(SeverityLevel::High)
+        .build();
 
     let engine = DetectionEngine::new(&config).await.unwrap();
 
@@ -648,10 +641,9 @@ async fn test_severity_level_thresholds() {
     let mut results = Vec::new();
 
     for (severity, name) in severity_levels {
-        let config = DetectionConfig {
-            severity_level: Some(severity),
-            ..Default::default()
-        };
+        let config = DetectionConfig::builder()
+            .with_severity_level(severity)
+            .build();
 
         let engine = DetectionEngine::new(&config).await.unwrap();
 

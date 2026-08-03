@@ -1,20 +1,27 @@
-//! Feature toggle system for FluxPrompt detection capabilities.
+//! Serializable feature descriptors used by [`crate::CustomConfig`].
 //!
-//! This module provides granular control over individual detection features,
-//! allowing users to enable or disable specific detection methods based on
-//! their use case requirements.
+//! The current [`crate::FluxPrompt::from_custom_config`] runtime consumes the
+//! embedded [`crate::DetectionConfig`], not these individual flags. Store and
+//! inspect them as configuration metadata; do not assume they enable, disable,
+//! or implement a detector.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Individual feature toggles for detection capabilities.
+/// Requested feature states stored in a custom configuration.
+///
+/// These fields are descriptors in the current release and are not wired to
+/// individual runtime detectors.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Features {
     /// Enable pattern-based detection using regex patterns
     pub pattern_matching: bool,
     /// Enable heuristic analysis for behavioral detection
     pub heuristic_analysis: bool,
-    /// Enable semantic detection using embeddings/ML models
+    /// Describes a request for semantic detection.
+    ///
+    /// The built-in analyzer uses keywords and structure, not embeddings or an
+    /// ML model.
     pub semantic_detection: bool,
     /// Enable encoding/obfuscation bypass detection
     pub encoding_detection: bool,
@@ -26,7 +33,10 @@ pub struct Features {
     pub role_play_detection: bool,
     /// Enable data extraction attempt detection
     pub data_extraction_detection: bool,
-    /// Enable multi-modal detection (images, audio, etc.)
+    /// Describes a request for multimodal detection.
+    ///
+    /// FluxPrompt currently accepts text only and does not implement image or
+    /// audio detection.
     pub multi_modal_detection: bool,
     /// Enable custom pattern matching
     pub custom_patterns: bool,
@@ -41,7 +51,7 @@ pub struct Features {
 }
 
 impl Features {
-    /// Creates a new Features instance with all features enabled.
+    /// Creates a descriptor with every flag set to `true`.
     pub fn all_enabled() -> Self {
         Self {
             pattern_matching: true,
@@ -61,7 +71,7 @@ impl Features {
         }
     }
 
-    /// Creates a new Features instance with all features disabled.
+    /// Creates a descriptor with every flag set to `false`.
     pub fn all_disabled() -> Self {
         Self {
             pattern_matching: false,
@@ -81,7 +91,7 @@ impl Features {
         }
     }
 
-    /// Creates a minimal feature set with only basic detection.
+    /// Creates the descriptor historically named `minimal`.
     pub fn minimal() -> Self {
         Self {
             pattern_matching: true,
@@ -101,12 +111,12 @@ impl Features {
         }
     }
 
-    /// Creates a balanced feature set suitable for most applications.
+    /// Creates the descriptor historically named `balanced`.
     pub fn balanced() -> Self {
         Self {
             pattern_matching: true,
             heuristic_analysis: true,
-            semantic_detection: false, // Disabled by default to avoid model dependencies
+            semantic_detection: false,
             encoding_detection: true,
             social_engineering_detection: true,
             context_hijacking_detection: true,
@@ -121,7 +131,10 @@ impl Features {
         }
     }
 
-    /// Creates a performance-optimized feature set with faster detection.
+    /// Creates the descriptor historically named `performance_optimized`.
+    ///
+    /// The name is not a performance claim because these flags are not applied
+    /// to runtime detector selection.
     pub fn performance_optimized() -> Self {
         Self {
             pattern_matching: true,
@@ -141,12 +154,14 @@ impl Features {
         }
     }
 
-    /// Creates a comprehensive feature set with maximum security.
+    /// Creates a descriptor with every flag set to `true`.
+    ///
+    /// This is an alias for [`Self::all_enabled`], not an assurance level.
     pub fn comprehensive() -> Self {
         Self::all_enabled()
     }
 
-    /// Enables a specific feature by name.
+    /// Sets a named descriptor flag to `true`.
     pub fn enable_feature(&mut self, feature_name: &str) -> Result<(), String> {
         match feature_name {
             "pattern_matching" => self.pattern_matching = true,
@@ -168,7 +183,7 @@ impl Features {
         Ok(())
     }
 
-    /// Disables a specific feature by name.
+    /// Sets a named descriptor flag to `false`.
     pub fn disable_feature(&mut self, feature_name: &str) -> Result<(), String> {
         match feature_name {
             "pattern_matching" => self.pattern_matching = false,
@@ -190,7 +205,7 @@ impl Features {
         Ok(())
     }
 
-    /// Returns true if a specific feature is enabled.
+    /// Returns the stored value of a named descriptor flag.
     pub fn is_feature_enabled(&self, feature_name: &str) -> bool {
         match feature_name {
             "pattern_matching" => self.pattern_matching,
@@ -211,7 +226,7 @@ impl Features {
         }
     }
 
-    /// Returns a list of all enabled feature names.
+    /// Returns names whose stored descriptor flag is `true`.
     pub fn enabled_features(&self) -> Vec<String> {
         let mut enabled = Vec::new();
 
@@ -261,7 +276,7 @@ impl Features {
         enabled
     }
 
-    /// Returns a list of all disabled feature names.
+    /// Returns names whose stored descriptor flag is `false`.
     pub fn disabled_features(&self) -> Vec<String> {
         let mut disabled = Vec::new();
 
@@ -311,7 +326,7 @@ impl Features {
         disabled
     }
 
-    /// Returns the total number of enabled features.
+    /// Returns the number of descriptor flags set to `true`.
     pub fn enabled_count(&self) -> usize {
         self.enabled_features().len()
     }

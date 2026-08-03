@@ -1,10 +1,11 @@
 //! # FluxPrompt
 //!
-//! A high-performance Rust SDK for detecting and mitigating prompt injection attacks.
+//! Local prompt-injection risk signals and mitigation helpers for Rust applications.
 //!
-//! FluxPrompt provides comprehensive protection against various prompt injection techniques
-//! while maintaining low latency and high throughput. It uses a multi-layered detection
-//! approach combining pattern matching, semantic analysis, and heuristic detection.
+//! FluxPrompt combines regular-expression, structural, and keyword heuristics. Its outputs are
+//! advisory and may contain false positives or false negatives. Callers remain responsible for
+//! authorization, least-privilege tool access, output validation, monitoring, and deciding how
+//! detection results affect application behavior.
 //!
 //! ## Quick Start
 //!
@@ -30,11 +31,9 @@
 //!
 //! # #[tokio::main]
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let custom_config = CustomConfigBuilder::from_preset(Preset::Financial)
-//!     .with_name("High Security Financial Config")
-//!     .with_security_level(9)?
-//!     .enable_feature("semantic_detection")?
-//!     .override_threshold("data_extraction", 0.3)?
+//! let custom_config = CustomConfigBuilder::from_preset(Preset::ChatBot)
+//!     .with_name("Application policy")
+//!     .with_security_level(7)?
 //!     .build_validated()?;
 //!
 //! let detector = FluxPrompt::from_custom_config(custom_config).await?;
@@ -44,13 +43,10 @@
 //!
 //! ## Features
 //!
-//! - Multi-layered detection system with granular control
-//! - Custom configuration system with presets and builders
-//! - Feature toggles for individual detection methods
-//! - Time-based and role-based configuration switching
-//! - Real-time processing with async support
-//! - Comprehensive metrics and monitoring
-//! - Production-ready performance and scalability
+//! - Pattern, structural, encoding, and keyword-based signals
+//! - Configuration presets, builders, JSON, and YAML serialization
+//! - Async analysis and optional response mitigation
+//! - In-process detection metrics
 
 #![warn(missing_docs)]
 #![warn(clippy::all)]
@@ -135,12 +131,16 @@ impl FluxPrompt {
     /// # Ok(())
     /// # }
     /// ```
-    #[instrument]
+    #[instrument(skip_all)]
     pub async fn new(config: DetectionConfig) -> Result<Self> {
         info!("Initializing FluxPrompt detector");
+        config.validate()?;
+        Self::from_validated_config(config).await
+    }
 
-        let detection_engine = Arc::new(DetectionEngine::new(&config).await?);
-        let mitigation_engine = Arc::new(MitigationEngine::new(&config).await?);
+    async fn from_validated_config(config: DetectionConfig) -> Result<Self> {
+        let detection_engine = Arc::new(DetectionEngine::from_validated_config(&config).await?);
+        let mitigation_engine = Arc::new(MitigationEngine::from_validated_config(&config));
         let metrics_collector = Arc::new(RwLock::new(MetricsCollector::new()));
 
         Ok(Self {
@@ -169,7 +169,7 @@ impl FluxPrompt {
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let custom_config = CustomConfigBuilder::from_preset(Preset::Financial)
-    ///     .with_name("High Security Config")
+    ///     .with_name("High Sensitivity Config")
     ///     .with_security_level(9)?
     ///     .build_validated()?;
     ///
@@ -177,13 +177,14 @@ impl FluxPrompt {
     /// # Ok(())
     /// # }
     /// ```
-    #[instrument]
-    pub async fn from_custom_config(custom_config: CustomConfig) -> Result<Self> {
-        info!(
-            "Initializing FluxPrompt with custom configuration: {}",
-            custom_config.name
-        );
-        Self::new(custom_config.detection_config).await
+    #[instrument(skip_all)]
+    pub async fn from_custom_config(mut custom_config: CustomConfig) -> Result<Self> {
+        info!("Initializing FluxPrompt with custom configuration");
+        if !custom_config.enabled {
+            return Err(FluxPromptError::config("custom configuration is disabled"));
+        }
+        custom_config.validate()?;
+        Self::from_validated_config(custom_config.detection_config).await
     }
 
     /// Creates a new FluxPrompt instance from a preset configuration.
@@ -207,7 +208,7 @@ impl FluxPrompt {
     /// # Ok(())
     /// # }
     /// ```
-    #[instrument]
+    #[instrument(skip_all, fields(preset = ?preset))]
     pub async fn from_preset(preset: Preset) -> Result<Self> {
         info!("Initializing FluxPrompt with preset: {:?}", preset);
         let config = preset.to_detection_config();
@@ -238,22 +239,21 @@ impl FluxPrompt {
     /// # Ok(())
     /// # }
     /// ```
-    #[instrument]
+    #[instrument(skip_all)]
     pub async fn from_file<P: AsRef<std::path::Path> + std::fmt::Debug>(
         file_path: P,
     ) -> Result<Self> {
-        info!(
-            "Loading FluxPrompt configuration from file: {:?}",
-            file_path
-        );
+        info!("Loading FluxPrompt configuration from file");
         let custom_config = CustomConfig::load_from_file(file_path)?;
         Self::from_custom_config(custom_config).await
     }
 
     /// Analyzes a prompt for potential injection attacks.
     ///
-    /// This method performs comprehensive analysis using all configured detection
-    /// methods and returns a detailed result.
+    /// Runs the configured local detectors and returns their advisory result.
+    ///
+    /// The caller is responsible for enforcing the decision before invoking a
+    /// model or tool.
     ///
     /// # Arguments
     ///
@@ -279,7 +279,7 @@ impl FluxPrompt {
     /// # Ok(())
     /// # }
     /// ```
-    #[instrument(skip(self))]
+    #[instrument(skip_all, fields(prompt_len = prompt.len()))]
     pub async fn analyze(&self, prompt: &str) -> Result<PromptAnalysis> {
         // Perform detection
         let detection_result = self.detection_engine.analyze(prompt).await?;
@@ -295,8 +295,7 @@ impl FluxPrompt {
             None
         };
 
-        // Update metrics
-        {
+        if self.config.enable_metrics {
             let metrics = self.metrics_collector.write().await;
             metrics.record_detection(&detection_result);
         }
@@ -318,12 +317,15 @@ impl FluxPrompt {
     /// Updates the detection configuration.
     ///
     /// Note: This will reinitialize the detection engines with the new configuration.
-    #[instrument(skip(self))]
+    #[instrument(skip_all)]
     pub async fn update_config(&mut self, config: DetectionConfig) -> Result<()> {
         info!("Updating FluxPrompt configuration");
+        config.validate()?;
 
-        self.detection_engine = Arc::new(DetectionEngine::new(&config).await?);
-        self.mitigation_engine = Arc::new(MitigationEngine::new(&config).await?);
+        let detection_engine = Arc::new(DetectionEngine::from_validated_config(&config).await?);
+        let mitigation_engine = Arc::new(MitigationEngine::from_validated_config(&config));
+        self.detection_engine = detection_engine;
+        self.mitigation_engine = mitigation_engine;
         self.config = config;
 
         Ok(())
@@ -350,6 +352,31 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_sanitize_fails_closed_when_preprocessing_invalidates_custom_span() {
+        let config = DetectionConfig {
+            response_strategy: ResponseStrategy::Sanitize,
+            pattern_config: crate::config::PatternConfig {
+                enabled_categories: Some(Vec::new()),
+                custom_patterns: vec!["evil payload".to_string()],
+                ..crate::config::PatternConfig::default()
+            },
+            ..DetectionConfig::default()
+        };
+        let detector = FluxPrompt::new(config).await.unwrap();
+
+        let analysis = detector.analyze("evil payload\0").await.unwrap();
+
+        assert!(analysis.is_injection_detected());
+        assert!(analysis.detection_result().threats().iter().any(|threat| {
+            threat
+                .metadata
+                .get("span_omitted")
+                .is_some_and(|reason| reason == "preprocessing_changed_coordinates")
+        }));
+        assert_eq!(analysis.mitigated_prompt(), Some("[FILTERED]"));
+    }
+
+    #[tokio::test]
     async fn test_metrics_collection() {
         let config = DetectionConfig::default();
         let detector = FluxPrompt::new(config).await.unwrap();
@@ -358,6 +385,64 @@ mod tests {
         let metrics = detector.metrics().await;
 
         assert!(metrics.total_analyzed() > 0);
+    }
+
+    #[tokio::test]
+    async fn test_metrics_can_be_disabled() {
+        let config = DetectionConfig::builder().enable_metrics(false).build();
+        let detector = FluxPrompt::new(config).await.unwrap();
+
+        let _ = detector.analyze("Test prompt").await.unwrap();
+        assert_eq!(detector.metrics().await.total_analyzed(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_analysis_duration_matches_detection_result() {
+        let detector = FluxPrompt::new(DetectionConfig::default()).await.unwrap();
+        let analysis = detector.analyze("Test prompt").await.unwrap();
+
+        assert_eq!(
+            analysis.analysis_duration,
+            std::time::Duration::from_millis(analysis.detection_result().analysis_duration_ms())
+        );
+    }
+
+    #[tokio::test]
+    async fn test_invalid_config_rejected_by_all_constructors() {
+        let mut invalid = DetectionConfig::default();
+        invalid.pattern_config.max_patterns = 0;
+        assert!(FluxPrompt::new(invalid.clone()).await.is_err());
+
+        let mut custom = CustomConfig::new("Invalid".to_string(), "Test".to_string());
+        custom.detection_config = invalid;
+        assert!(
+            FluxPrompt::from_custom_config(custom.clone())
+                .await
+                .is_err()
+        );
+
+        let path = std::env::temp_dir().join(format!(
+            "fluxprompt-invalid-config-{}.json",
+            uuid::Uuid::new_v4()
+        ));
+        custom.save_to_file(&path).unwrap();
+        let result = FluxPrompt::from_file(&path).await;
+        let _ = std::fs::remove_file(&path);
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_disabled_custom_config_is_rejected() {
+        let mut custom = CustomConfig::new("Disabled".to_string(), "Test".to_string());
+        custom.enabled = false;
+
+        let error = match FluxPrompt::from_custom_config(custom).await {
+            Ok(_) => panic!("disabled custom configuration must be rejected"),
+            Err(error) => error,
+        };
+
+        assert!(matches!(&error, FluxPromptError::Config { .. }));
+        assert!(error.to_string().contains("disabled"));
     }
 
     // COMPREHENSIVE MAIN API TESTS
@@ -566,6 +651,18 @@ mod tests {
             detector.config().response_strategy,
             ResponseStrategy::Sanitize
         );
+    }
+
+    #[tokio::test]
+    async fn test_invalid_config_update_preserves_current_config() {
+        let mut detector = FluxPrompt::new(DetectionConfig::default()).await.unwrap();
+        let original_level = detector.config().security_level;
+        let mut invalid = DetectionConfig::default();
+        invalid.pattern_config.max_patterns = 0;
+
+        assert!(detector.update_config(invalid).await.is_err());
+        assert_eq!(detector.config().security_level, original_level);
+        assert!(detector.config().pattern_config.max_patterns > 0);
     }
 
     #[tokio::test]

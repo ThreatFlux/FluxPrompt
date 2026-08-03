@@ -13,6 +13,9 @@ on:
     - cron: '0 0 * * MON'  # Weekly on Monday at midnight UTC
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   audit:
     name: Security Audit
@@ -26,7 +29,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
-          toolchain: 1.95.0
+          toolchain: 1.97.1
 
       - name: Cache cargo registry
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -41,12 +44,11 @@ jobs:
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        uses: taiki-e/install-action@07b4745e0c39a41822af610387492e3e53aa222b # v2.83.4
+        with:
+          tool: cargo-audit@0.22.2
 
       - name: Run security audit
-        run: cargo audit
-
-      - name: Check for vulnerable dependencies
         run: cargo audit --deny warnings
 
   cargo-deny:
@@ -61,10 +63,12 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
         with:
-          toolchain: 1.95.0
+          toolchain: 1.97.1
 
       - name: Install cargo-deny
-        run: cargo install cargo-deny --locked
+        uses: taiki-e/install-action@07b4745e0c39a41822af610387492e3e53aa222b # v2.83.4
+        with:
+          tool: cargo-deny@0.20.2
 
       - name: Check dependencies
         run: cargo deny check
@@ -99,4 +103,4 @@ jobs:
         uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
         with:
           baseline-rev: ${{ github.event.pull_request.base.sha }}
-          rust-toolchain: 1.95.0
+          rust-toolchain: 1.97.1

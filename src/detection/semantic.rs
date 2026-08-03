@@ -1,17 +1,18 @@
 //! Semantic analysis for advanced prompt injection detection.
 
 use std::collections::HashMap;
-use tracing::{debug, instrument, warn};
+use tracing::{debug, instrument};
 
 use crate::config::SemanticConfig;
 use crate::error::Result;
 use crate::types::{ThreatInfo, ThreatType};
+use crate::utils::floor_char_boundary;
 
-/// Semantic analyzer for context-aware threat detection.
+/// Keyword- and structure-based analyzer for context-aware threat signals.
+///
+/// This implementation does not load an embedding or language model.
 pub struct SemanticAnalyzer {
     config: SemanticConfig,
-    // In a real implementation, this would contain embedding models, etc.
-    _model_placeholder: Option<String>,
 }
 
 impl SemanticAnalyzer {
@@ -20,17 +21,12 @@ impl SemanticAnalyzer {
     pub async fn new(config: &SemanticConfig) -> Result<Self> {
         debug!("Initializing semantic analyzer");
 
-        if config.enabled && config.model_name.is_none() {
-            warn!("Semantic analysis enabled but no model specified");
-        }
-
         Ok(Self {
             config: config.clone(),
-            _model_placeholder: config.model_name.clone(),
         })
     }
 
-    /// Analyzes text for semantic threats using advanced NLP techniques.
+    /// Analyzes text with keyword- and structure-based heuristics.
     #[instrument(skip(self, text))]
     pub async fn analyze(&self, text: &str) -> Result<Vec<ThreatInfo>> {
         if !self.config.enabled {
@@ -44,9 +40,10 @@ impl SemanticAnalyzer {
 
         let mut threats = Vec::new();
 
-        // Truncate text if it exceeds max context length
+        // Treat max_context_length as a byte limit while preserving UTF-8.
         let text_to_analyze = if text.len() > self.config.max_context_length {
-            &text[..self.config.max_context_length]
+            let end = floor_char_boundary(text, self.config.max_context_length);
+            &text[..end]
         } else {
             text
         };
@@ -83,7 +80,7 @@ impl SemanticAnalyzer {
                     threats.push(ThreatInfo {
                         threat_type: ThreatType::ContextConfusion,
                         confidence,
-                        span: None, // In a real implementation, this would locate the exact span
+                        span: None,
                         metadata,
                     });
                 }
@@ -105,8 +102,7 @@ impl SemanticAnalyzer {
             "false friendship",
         ];
 
-        // Simple keyword-based detection for demo purposes
-        // In a real implementation, this would use proper NLP models
+        // Simple keyword-based detection.
         let emotional_keywords = [
             "please help",
             "desperately need",
@@ -195,11 +191,10 @@ impl SemanticAnalyzer {
 
     /// Calculates semantic confidence score.
     fn calculate_semantic_confidence(&self, text: &str, threat_type: &str) -> f32 {
-        // Simple confidence calculation
-        // In a real implementation, this would use embedding similarity, etc.
+        // Simple heuristic confidence calculation.
         let base_confidence = 0.6;
 
-        let length_factor = (text.len() as f32 / 100.0).min(1.5);
+        let length_factor = (text.chars().count() as f32 / 100.0).min(1.5);
         let type_factor = match threat_type {
             "contradiction" => 1.2,
             "misdirection" => 1.1,
@@ -215,7 +210,10 @@ impl SemanticAnalyzer {
         self.config.enabled
     }
 
-    /// Returns the configured model name.
+    /// Returns the configured model label.
+    ///
+    /// The current heuristic implementation stores this value as metadata and
+    /// does not load or invoke the named model.
     pub fn model_name(&self) -> Option<&str> {
         self.config.model_name.as_deref()
     }
@@ -317,6 +315,20 @@ mod tests {
         let analyzer = SemanticAnalyzer::new(&config).await.unwrap();
         let long_text = "a".repeat(100);
         let result = analyzer.analyze(&long_text).await;
+
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_max_context_length_preserves_utf8_boundaries() {
+        let config = SemanticConfig {
+            enabled: true,
+            max_context_length: 3,
+            ..SemanticConfig::default()
+        };
+
+        let analyzer = SemanticAnalyzer::new(&config).await.unwrap();
+        let result = analyzer.analyze("abé but actually").await;
 
         assert!(result.is_ok());
     }

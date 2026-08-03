@@ -1,37 +1,46 @@
 [package]
 name = "fluxprompt"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["FluxPrompt Team"]
 license = "MIT"
-description = "A Rust SDK for detecting and mitigating prompt injection attacks"
+description = "Local prompt-injection risk signals and mitigation helpers for Rust applications"
 homepage = "https://github.com/ThreatFlux/FluxPrompt"
 repository = "https://github.com/ThreatFlux/FluxPrompt"
 readme = "README.md"
 keywords = ["security", "ai", "prompt-injection", "llm", "detection"]
-categories = ["security", "ai", "text-processing"]
-rust-version = "1.95.0"
+categories = ["security", "artificial-intelligence", "text-processing"]
+rust-version = "1.97.1"
+include = [
+    "/src/**/*.rs",
+    "/examples/**/*.rs",
+    "/benches/**/*.rs",
+    "/docs/**/*.md",
+    "/README.md",
+    "/LICENSE",
+    "/CHANGELOG.md",
+    "/CONTRIBUTING.md",
+    "/SECURITY.md",
+    "/CODE_OF_CONDUCT.md",
+]
 
 [dependencies]
-tokio = { version = "1.52", features = ["full"] }
+tokio = { version = "1.53", features = ["sync", "time"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde_yaml = "0.9"
-regex = "1.12"
+serde_yaml = { package = "yaml_serde", version = "0.10" }
+regex = "1.13"
 dashmap = "6.2"
-rayon = "1.12"
 tracing = "0.1"
 thiserror = "2.0"
 once_cell = "1.21"
 uuid = { version = "1.23", features = ["v4", "serde"] }
-chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.23"
 urlencoding = "2.1"
 hex = "0.4"
-colored = "3.1"
-rand = "0.10"
 
 [dev-dependencies]
+tokio = { version = "1.53", features = ["full"] }
 tokio-test = "0.4"
 proptest = "1.11"
 criterion = { version = "0.8", features = ["html_reports"] }
@@ -39,6 +48,7 @@ futures = "0.3"
 tracing-subscriber = "0.3"
 reqwest = { version = "0.13", features = ["json"] }
 dialoguer = "0.12"
+colored = "3.1"
 
 [[bench]]
 name = "detection_benchmarks"
@@ -46,9 +56,10 @@ harness = false
 
 [features]
 default = ["metrics"]
+# Compatibility feature names retained as no-ops. Metrics remain controlled at
+# runtime through `DetectionConfig::enable_metrics`.
 metrics = []
 experimental = []
 
 [package.metadata.docs.rs]
-all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

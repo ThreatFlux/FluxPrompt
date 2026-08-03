@@ -1,28 +1,25 @@
-.PHONY: all clean build test fmt clippy doc audit security coverage bench check install-tools help \
-        fmt-check test-no-features build-examples test-doc doc-check doc-links \
-        deny outdated security-geiger security-supply-chain semver-check feature-test feature-test-full \
-        markdownlint \
+.PHONY: all ci clean build test fmt clippy doc audit security coverage bench check install-tools help \
+        fmt-check build-examples test-doc doc-check doc-links \
+        deny outdated security-geiger security-supply-chain semver-check \
+        markdownlint package-check \
         msrv msrv-install security-enhanced ci-local validate analyze examples release-prep dev
 
-RUST_MSRV := 1.95.0
+RUST_MSRV := 1.97.1
 
 # Default target
-all: install-tools fmt clippy markdownlint build test test-no-features build-examples test-doc doc-check doc-links audit security
-	@echo "✅ All checks passed!"
+all: ci-local
 
 # CI simulation - matches GitHub Actions CI workflow
-ci: fmt-check clippy markdownlint build test test-no-features build-examples test-doc doc-check
-	@echo "✅ CI checks passed!"
+ci: ci-local
 
 # Install required tools
 install-tools:
 	@echo "📦 Installing required tools..."
-	@command -v cargo-audit >/dev/null 2>&1 || cargo install cargo-audit
-	@command -v cargo-outdated >/dev/null 2>&1 || cargo install cargo-outdated
-	@command -v cargo-deny >/dev/null 2>&1 || cargo install cargo-deny
-	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install cargo-llvm-cov
-	@command -v cargo-hack >/dev/null 2>&1 || cargo install cargo-hack
-	@command -v cargo-deadlinks >/dev/null 2>&1 || cargo install cargo-deadlinks
+	@command -v cargo-audit >/dev/null 2>&1 || cargo install --locked cargo-audit --version 0.22.2
+	@command -v cargo-outdated >/dev/null 2>&1 || cargo install --locked cargo-outdated
+	@command -v cargo-deny >/dev/null 2>&1 || cargo install --locked cargo-deny --version 0.20.2
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install --locked cargo-llvm-cov --version 0.8.7
+	@command -v cargo-deadlinks >/dev/null 2>&1 || cargo install --locked cargo-deadlinks
 	@command -v cargo-geiger >/dev/null 2>&1 || cargo install cargo-geiger --locked
 	@command -v cargo-supply-chain >/dev/null 2>&1 || cargo install cargo-supply-chain --locked
 	@command -v cargo-semver-checks >/dev/null 2>&1 || cargo install cargo-semver-checks --locked
@@ -43,55 +40,56 @@ fmt-check:
 # Lint Markdown documentation
 markdownlint:
 	@echo "📝 Linting Markdown..."
-	@npx --yes markdownlint-cli2
+	@npx --yes markdownlint-cli2@0.23.2
+	@python3 scripts/check_docs.py
 	@echo "✅ Markdown lint passed"
+
+# Verify the contents and relative links of the crates.io archive
+package-check:
+	@echo "📦 Checking Cargo package contents..."
+	@python3 scripts/check_package.py
+	@echo "✅ Cargo package contents passed"
 
 # Run clippy linter
 clippy:
 	@echo "📎 Running clippy..."
-	@cargo clippy --all-features --all-targets -- -D warnings
+	@cargo clippy --locked --all-targets -- -D warnings
 	@echo "✅ Clippy passed"
 
 # Build the project
 build:
 	@echo "🔨 Building project..."
-	@cargo build --all-features --release
+	@cargo build --locked --release
 	@echo "✅ Build successful"
 
 # Run tests
 test:
 	@echo "🧪 Running tests..."
-	@cargo test --all-features
+	@cargo test --locked
 	@echo "✅ Tests passed"
-
-# Test without features
-test-no-features:
-	@echo "🧪 Running tests without features..."
-	@cargo test --no-default-features
-	@echo "✅ Tests without features passed"
 
 # Build examples
 build-examples:
 	@echo "🔨 Building examples..."
-	@cargo build --examples --all-features
+	@cargo build --locked --examples
 	@echo "✅ Examples built successfully"
 
 # Test documentation examples
 test-doc:
 	@echo "📚 Testing documentation examples..."
-	@cargo test --doc --all-features
+	@cargo test --locked --doc
 	@echo "✅ Doc tests passed"
 
 # Generate documentation
 doc:
 	@echo "📖 Generating documentation..."
-	@cargo doc --all-features --no-deps
+	@cargo doc --locked --no-deps
 	@echo "✅ Documentation generated"
 
 # Check documentation with warnings as errors
 doc-check:
 	@echo "📖 Checking documentation..."
-	@RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps --document-private-items
+	@RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --document-private-items
 	@echo "✅ Documentation check passed"
 
 # Run security audit
@@ -109,32 +107,32 @@ deny:
 # Check outdated dependencies
 outdated:
 	@echo "📊 Checking for outdated dependencies..."
-	@cargo outdated || true
+	@cargo outdated
 	@echo "✅ Outdated check complete"
 
 # Security analysis with cargo-geiger (unsafe code detection)
 security-geiger:
 	@echo "🔍 Analyzing unsafe code usage..."
-	@cargo geiger --output-format GitHubMarkdown > unsafe-report.md || echo "⚠️ Geiger analysis completed with warnings"
+	@cargo geiger --output-format GitHubMarkdown > unsafe-report.md
 	@echo "✅ Unsafe code analysis complete (see unsafe-report.md)"
 
 # Supply chain security analysis
 security-supply-chain:
 	@echo "🔗 Analyzing supply chain security..."
-	@cargo supply-chain crates > supply-chain-report.txt 2>&1 || echo "⚠️ Supply chain analysis completed with warnings"
+	@cargo supply-chain crates > supply-chain-report.txt 2>&1
 	@echo "✅ Supply chain analysis complete (see supply-chain-report.txt)"
 
 # Check documentation links
 doc-links:
 	@echo "🔗 Checking documentation links..."
-	@cargo doc --all-features --no-deps --document-private-items
-	@cargo deadlinks --dir target/doc || echo "⚠️ Some documentation links may be broken"
+	@cargo doc --locked --no-deps --document-private-items
+	@cargo deadlinks --dir target/doc
 	@echo "✅ Documentation link check complete"
 
 # Semantic versioning checks
 semver-check:
 	@echo "📋 Checking semantic versioning..."
-	@cargo semver-checks check-release || echo "⚠️ Semver check completed with warnings"
+	@cargo semver-checks check-release
 	@echo "✅ Semantic versioning check complete"
 
 # Combined security checks
@@ -144,24 +142,24 @@ security: audit deny outdated security-geiger security-supply-chain
 # Generate test coverage
 coverage:
 	@echo "📊 Generating test coverage..."
-	@cargo llvm-cov --all-features --html
+	@cargo llvm-cov --locked --html
 	@echo "✅ Coverage report generated at target/llvm-cov/html/index.html"
 
 # Run benchmarks
 bench:
 	@echo "⚡ Running benchmarks..."
-	@cargo bench --all-features || true
+	@cargo bench --locked
 	@echo "✅ Benchmarks complete"
 
 # Check MSRV (Minimum Supported Rust Version)
 msrv:
 	@echo "🦀 Checking MSRV ($(RUST_MSRV))..."
 	@if rustup toolchain list | grep -q "$(RUST_MSRV)"; then \
-		cargo +$(RUST_MSRV) check --all-features; \
+		cargo +$(RUST_MSRV) check --locked; \
 	else \
 		echo "⚠️  MSRV toolchain $(RUST_MSRV) not installed. Installing..."; \
 		rustup toolchain install $(RUST_MSRV) --component rustfmt,clippy; \
-		cargo +$(RUST_MSRV) check --all-features; \
+		cargo +$(RUST_MSRV) check --locked; \
 	fi
 	@echo "✅ MSRV check complete"
 
@@ -171,22 +169,10 @@ msrv-install:
 	@rustup toolchain install $(RUST_MSRV) --component rustfmt,clippy
 	@echo "✅ MSRV toolchain installed"
 
-# Test feature combinations
-feature-test:
-	@echo "🔀 Testing feature combinations..."
-	@cargo hack check --feature-powerset --depth 2 --all-targets
-	@echo "✅ Feature combination tests passed"
-
-# Test feature combinations with tests
-feature-test-full:
-	@echo "🔀 Testing feature combinations (with tests)..."
-	@cargo hack test --feature-powerset --depth 2
-	@echo "✅ Full feature combination tests passed"
-
 # Quick check (faster than full build)
 check:
 	@echo "⚡ Quick check..."
-	@cargo check --all-features
+	@cargo check --locked
 	@echo "✅ Check passed"
 
 # Clean build artifacts
@@ -199,14 +185,14 @@ clean:
 # Run examples
 examples:
 	@echo "🎯 Running examples..."
-	@cargo run --example basic_detection
-	@cargo run --example validate_responses
+	@cargo run --locked --example basic_detection
+	@cargo run --locked --example validate_responses
 	@echo "✅ Examples ran successfully"
 
 # Release preparation
-release-prep: fmt test doc audit security
-	@echo "📦 Checking Cargo.toml version..."
-	@grep "^version" Cargo.toml
+release-prep: fmt-check clippy markdownlint package-check test build-examples test-doc doc-check audit deny
+	@cargo package --locked
+	@cargo publish --dry-run --locked
 	@echo "✅ Ready for release!"
 
 # Development workflow - format, build, and test
@@ -218,11 +204,11 @@ security-enhanced: security security-supply-chain security-geiger semver-check
 	@echo "✅ Enhanced security analysis complete!"
 
 # CI-equivalent validation (matches GitHub Actions CI workflow)
-ci-local: fmt-check clippy markdownlint build test test-no-features build-examples test-doc doc-check doc-links feature-test
+ci-local: fmt-check clippy markdownlint package-check build test build-examples test-doc doc-check
 	@echo "✅ Local CI validation complete!"
 
 # Full validation (everything - matches all CI/CD workflows)
-validate: all coverage feature-test-full security-enhanced
+validate: all coverage security-enhanced
 	@echo "🎉 Full validation complete!"
 
 # Complete analysis (all tools, all checks)
@@ -237,7 +223,7 @@ help:
 	@echo "  make all          - Run all standard checks (format, lint, build, test, doc, security)"
 	@echo "  make dev          - Quick development check (format, build, test)"
 	@echo "  make ci-local     - Simulate full CI checks locally"
-	@echo "  make validate     - Full validation including coverage and feature tests"
+	@echo "  make validate     - Full validation including coverage and security checks"
 	@echo "  make analyze      - Complete analysis (all tools, all checks)"
 	@echo ""
 	@echo "🔨 Individual targets:"
@@ -245,6 +231,7 @@ help:
 	@echo "  make fmt-check    - Check formatting without modifying"
 	@echo "  make clippy       - Run clippy linter"
 	@echo "  make markdownlint - Lint Markdown files"
+	@echo "  make package-check - Verify crates.io package contents"
 	@echo "  make build        - Build the project"
 	@echo "  make test         - Run tests"
 	@echo "  make test-doc     - Test documentation examples"
@@ -261,9 +248,6 @@ help:
 	@echo "  make semver-check - Check semantic versioning"
 	@echo ""
 	@echo "🧪 Testing targets:"
-	@echo "  make test-no-features      - Test without features"
-	@echo "  make feature-test          - Test feature combinations (check only)"
-	@echo "  make feature-test-full     - Test feature combinations (with tests)"
 	@echo "  make coverage              - Generate test coverage report"
 	@echo ""
 	@echo "🛠️  Utility targets:"

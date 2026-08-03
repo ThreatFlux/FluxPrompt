@@ -33,7 +33,7 @@ jobs:
         persist-credentials: false
 
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      uses: github/codeql-action/init@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
       with:
         languages: ${{ matrix.language }}
         queries: security-and-quality
@@ -41,12 +41,12 @@ jobs:
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
       with:
-        toolchain: 1.95.0
+        toolchain: 1.97.1
 
     - name: Build
-      run: cargo build --all-features
+      run: cargo build --locked
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+      uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v4.37.1
       with:
         category: "/language:${{matrix.language}}"

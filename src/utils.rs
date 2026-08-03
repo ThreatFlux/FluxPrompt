@@ -5,6 +5,23 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// Returns the greatest byte index at or below `max_bytes` that is a UTF-8
+/// character boundary in `text`.
+pub(crate) fn floor_char_boundary(text: &str, max_bytes: usize) -> usize {
+    let mut end = max_bytes.min(text.len());
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    end
+}
+
+/// Truncates a string to a byte limit without splitting a UTF-8 character.
+pub(crate) fn truncate_utf8(value: &mut String, max_bytes: usize) {
+    if value.len() > max_bytes {
+        value.truncate(floor_char_boundary(value, max_bytes));
+    }
+}
+
 /// Common regex patterns used throughout the codebase.
 pub static PATTERNS: Lazy<HashMap<&'static str, Regex>> = Lazy::new(|| {
     let mut patterns = HashMap::new();
@@ -106,7 +123,7 @@ pub mod text {
 
     /// Calculates text similarity based on Levenshtein distance.
     pub fn similarity(s1: &str, s2: &str) -> f32 {
-        let max_len = std::cmp::max(s1.len(), s2.len());
+        let max_len = std::cmp::max(s1.chars().count(), s2.chars().count());
         if max_len == 0 {
             return 1.0;
         }
@@ -154,18 +171,24 @@ pub mod text {
         entropy
     }
 
-    /// Detects if text contains repeated patterns.
+    /// Detects if text contains adjacent repeated patterns.
+    ///
+    /// `min_pattern_length` is measured in Unicode scalar values, not bytes.
     pub fn has_repeated_patterns(text: &str, min_pattern_length: usize) -> bool {
-        if text.len() < min_pattern_length * 2 {
+        if min_pattern_length == 0 {
             return false;
         }
 
-        for pattern_len in min_pattern_length..=text.len() / 2 {
-            for start in 0..=(text.len() - pattern_len * 2) {
-                let pattern = &text[start..start + pattern_len];
-                let remaining = &text[start + pattern_len..];
+        let chars: Vec<char> = text.chars().collect();
+        if chars.len() < min_pattern_length.saturating_mul(2) {
+            return false;
+        }
 
-                if remaining.starts_with(pattern) {
+        for pattern_len in min_pattern_length..=chars.len() / 2 {
+            for start in 0..=chars.len() - pattern_len * 2 {
+                if chars[start..start + pattern_len]
+                    == chars[start + pattern_len..start + pattern_len * 2]
+                {
                     return true;
                 }
             }
@@ -456,6 +479,7 @@ mod tests {
         assert!((text::similarity("hello", "hello") - 1.0).abs() < f32::EPSILON);
         assert!(text::similarity("hello", "hallo") > 0.5);
         assert!(text::similarity("abc", "xyz") < 0.5);
+        assert!((text::similarity("éa", "éb") - 0.5).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -481,7 +505,20 @@ mod tests {
     fn test_repeated_patterns() {
         assert!(text::has_repeated_patterns("abcabc", 3));
         assert!(text::has_repeated_patterns("testtest", 4));
+        assert!(text::has_repeated_patterns("世界世界", 2));
         assert!(!text::has_repeated_patterns("hello world", 3));
+        assert!(!text::has_repeated_patterns("世界", 0));
+    }
+
+    #[test]
+    fn test_utf8_byte_limit_helpers() {
+        let text = "abé界";
+        assert_eq!(floor_char_boundary(text, 3), 2);
+        assert_eq!(floor_char_boundary(text, 4), 4);
+
+        let mut owned = text.to_string();
+        truncate_utf8(&mut owned, 3);
+        assert_eq!(owned, "ab");
     }
 
     #[test]

@@ -8,17 +8,17 @@ use crate::types::ThreatType;
 /// Available mitigation strategies.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MitigationStrategy {
-    /// Remove the detected threat entirely
+    /// Return an empty string
     Remove,
-    /// Replace with safe alternative
+    /// Replace the input with configured text
     Replace(String),
-    /// Encode the threat to neutralize it
+    /// Percent-encode a limited set of characters
     Encode,
     /// Add warning prefix
     Prefix(String),
     /// Add warning suffix
     Suffix(String),
-    /// Wrap in safe context
+    /// Wrap the text with configured prefix and suffix
     Wrap {
         /// Prefix to add before content
         prefix: String,
@@ -110,7 +110,9 @@ impl MitigationStrategy {
         )
     }
 
-    /// Returns true if this strategy completely removes the threat.
+    /// Returns whether this variant discards the original text.
+    ///
+    /// This does not guarantee that the replacement is safe for downstream use.
     pub fn removes_threat(&self) -> bool {
         matches!(
             self,

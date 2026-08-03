@@ -1,163 +1,164 @@
-# FluxPrompt Security Guidelines
+# Security Guidelines
 
-This document covers deployment and operational guidance for running FluxPrompt safely in production. It focuses on the current API and avoids environment-specific assumptions that can drift quickly.
+FluxPrompt supplies advisory text-analysis results. Secure deployment depends on where analysis occurs, how the result is enforced, and what capabilities remain available to the model or agent.
 
-## Table of Contents
+Start with the [threat model](threat-model.md). This guide focuses on integration and operations.
 
-- [Deployment Basics](#deployment-basics)
-- [Configuration Strategy](#configuration-strategy)
-- [Input and Output Handling](#input-and-output-handling)
-- [Monitoring and Logging](#monitoring-and-logging)
-- [Incident Response](#incident-response)
-- [Compliance Notes](#compliance-notes)
+## Put Enforcement Before Side Effects
 
-## Deployment Basics
-
-### Isolate the Service
-
-- Run FluxPrompt separately from development and staging environments.
-- Apply least-privilege access to runtime credentials, logs, and configuration files.
-- Use network controls so only trusted upstream services can submit analysis requests.
-- Treat configuration files as sensitive operational assets, especially when they contain custom threat rules or policy metadata.
-
-### Use Hardened Runtime Images
-
-- Prefer minimal base images.
-- Run as a non-root user.
-- Pin the Rust toolchain and rebuild images regularly.
-- Scan images and dependencies as part of CI/CD.
-
-Example container pattern:
-
-```dockerfile
-FROM docker.io/threatflux/rust-cicd-template:base-rust-latest AS builder
-RUN adduser -D -s /bin/sh fluxprompt
-WORKDIR /app
-COPY . .
-RUN cargo build --release --all-features
-
-FROM alpine:3.20
-RUN adduser -D -s /bin/sh fluxprompt
-USER fluxprompt
-COPY --from=builder /app/target/release/fluxprompt /usr/local/bin/
-CMD ["fluxprompt"]
-```
-
-## Configuration Strategy
-
-### Start from a Deliberate Baseline
-
-Pick one of these paths:
-
-- `DetectionConfig::default()` for a balanced baseline
-- `DetectionConfig::builder()` for lightweight tuning
-- `FluxPrompt::from_preset(...)` for domain-oriented defaults
-- `CustomConfigBuilder` for advanced policy control and file-backed configs
-
-Example baseline:
+Analyze untrusted content before it is added to model context, retrieval output, tool arguments, or an action queue. Branch explicitly on the result:
 
 ```rust
-use fluxprompt::{DetectionConfig, FluxPrompt, ResponseStrategy};
+use fluxprompt::FluxPrompt;
 
-# #[tokio::main]
-# async fn main() -> Result<(), Box<dyn std::error::Error>> {
-let config = DetectionConfig::builder()
-    .with_security_level(7)?
-    .with_response_strategy(ResponseStrategy::Block)
-    .enable_metrics(true)
-    .build();
+async fn screen<'a>(
+    detector: &FluxPrompt,
+    input: &'a str,
+) -> Result<&'a str, Box<dyn std::error::Error>> {
+    let analysis = detector.analyze(input).await?;
 
-config.validate()?;
-let detector = FluxPrompt::new(config).await?;
-# let _ = detector;
-# Ok(())
-# }
+    if analysis.is_injection_detected() {
+        return Err("request rejected by prompt policy".into());
+    }
+
+    Ok(input)
+}
 ```
 
-### Validate Before Deploying
+Do not begin an LLM request or tool operation concurrently with screening. `ResponseStrategy::Block` only generates text; it does not enforce this branch.
 
-- Call `config.validate()` on generated configs before startup.
-- Keep `security_level`, `response_strategy`, and timeout limits explicit in production-managed configs.
-- Review custom patterns before rollout; overly broad regexes can increase false positives and CPU cost.
-- If you use JSON or YAML configs, validate them in CI before shipping them to runtime.
+For indirect injection, analyze each untrusted retrieval/tool segment before composition where practical. Keep provenance labels so the application can apply different policies to system instructions, user input, and external content. Concatenating everything into one string erases the trust boundary FluxPrompt would need to reason about it.
 
-### Tune Limits Conservatively
+## Validate Configuration
 
-For stricter environments, prefer directly setting limits on a checked config:
+- Validate at startup and reject invalid configurations rather than falling back silently.
+- Prefer immutable, version-controlled configuration reviewed with the application code.
+- Avoid setting both `security_level` and legacy `severity_level`.
+- Treat presets as starting points, not domain certifications or measured security profiles.
+- Compile and exercise custom regexes in CI. Broad expressions can create false positives and CPU cost.
+- Re-run application calibration after changing a level, pattern, response strategy, model, prompt, retrieval source, or tool.
 
-```rust
-use std::time::Duration;
-use fluxprompt::DetectionConfig;
+See [configuration](configuration.md) for fields that are and are not consumed by the runtime.
 
-let mut config = DetectionConfig::default();
-config.preprocessing_config.max_length = 10_000;
-config.resource_config.analysis_timeout = Duration::from_secs(5);
-config.resource_config.max_concurrent_analyses = 100;
-config.validate()?;
-```
+## Enforce Resource Limits Outside the Crate
 
-## Input and Output Handling
+`analysis_timeout` wraps analysis in Tokio's cooperative timeout. The current CPU-bound detection stages may not yield before they finish, so the wrapper cannot preempt them and is not a hard wall-clock or CPU limit. Other resource-shaped fields are also not hard runtime controls in the current release.
 
-### Input Handling
+At the service boundary:
 
-- Enforce request size limits before prompts reach FluxPrompt.
-- Normalize trust boundaries: treat all user-supplied text as untrusted, even if it came through an internal system.
-- Consider additional upstream rate limiting for public-facing APIs.
-- Reject malformed or clearly abusive input before doing expensive downstream work.
+- limit HTTP/body and prompt size before allocating or decoding it;
+- bound concurrent analyses with a semaphore or worker pool;
+- apply per-principal and per-source rate limits;
+- use service-level CPU and memory limits;
+- cap queue depth and shed load deliberately;
+- apply an outer service deadline and use worker or process isolation where CPU-bound work must be preemptible;
+- set downstream model/tool timeouts independently;
+- test custom regexes against adversarial worst cases.
 
-### Output Handling
+Do not rely on `CustomConfig` rate-limit fields or `ResourceConfig` concurrency/memory/cache values unless the host explicitly enforces them.
 
-- Do not surface raw internal errors to end users.
-- Avoid logging original prompt bodies unless the system is specifically designed for secure forensic capture.
-- If you return mitigated text downstream, make sure callers know whether they are receiving original or transformed content.
+## Constrain Model and Tools
 
-### File-Backed Configurations
+Controls that authorize by capability remain effective even when text detection fails:
 
-- Restrict write access to JSON and YAML config files.
-- Treat configuration changes as deployable artifacts with code review, not ad hoc runtime edits.
-- Keep a clear audit trail when updating custom patterns, thresholds, or presets.
+- give each tool a narrow, allowlisted operation set;
+- derive authorization from authenticated application state, never model text;
+- validate tool arguments against typed schemas and business rules;
+- restrict network destinations and file-system paths;
+- isolate code execution and apply time/resource limits;
+- require human confirmation for destructive, financial, permission-changing, or externally visible actions;
+- validate outputs and apply data-egress policy before returning or acting on them.
 
-## Monitoring and Logging
+System-prompt wording alone is not an authorization control.
 
-### Metrics
+## Treat Mitigated Text as Untrusted
 
-FluxPrompt exposes runtime metrics through `FluxPrompt::metrics()`. At minimum, monitor:
+`Sanitize` uses deterministic substitutions and formatting cleanup. It can remove benign meaning, leave malicious meaning, or create a new ambiguous prompt. If an application forwards sanitized text:
 
-- total analyzed prompt volume
-- detection rate
-- average and percentile analysis latency
-- shifts in risk-level breakdown
-- sudden increases in specific threat categories
+1. retain a decision ID separately for audit correlation;
+2. re-run relevant validation on the transformed value;
+3. present transformation clearly to a reviewing user when appropriate;
+4. keep downstream capabilities least-privileged;
+5. never treat successful sanitization as proof of safety.
 
-Example metric access:
+For high-impact actions, rejection or quarantine is generally easier to reason about than automatic rewriting.
 
-```rust
-let metrics = detector.metrics().await;
-println!("Total analyzed: {}", metrics.total_analyzed());
-println!("Detection rate: {:.1}%", metrics.detection_rate_percentage());
-```
+## Logging and Privacy
 
-### Logging
+Prompt text can contain credentials, personal data, customer content, system instructions, or exploit details. Default operational telemetry should record outcomes rather than content:
 
-- Log analysis outcomes, not full prompt contents, unless you have an explicit secure-retention requirement.
-- Prefer structured logs with fields such as request ID, risk level, threat count, and latency.
-- Separate operational logs from any incident-forensics pipeline.
-- Retain logs only as long as required by your operational or regulatory needs.
+- request/decision ID;
+- library/configuration version;
+- risk level and threat-category identifiers;
+- analysis duration and enforcement action;
+- source/provenance class without raw content.
+
+If forensic prompt capture is necessary, use a separate access-controlled store with encryption, retention limits, audit logs, and redaction. Avoid putting raw input in general application logs, traces, metrics labels, exception messages, or alert titles.
+
+Review the tracing subscriber and exporters used by the host. A dependency or older FluxPrompt revision may record function arguments; confirm behavior for the exact revision you deploy.
+
+## Metrics and Alerting
+
+`FluxPrompt::metrics()` reports detector activity, not attack prevalence or accuracy. A rising detection rate can mean attacks, a product change, a configuration change, or false positives.
+
+Useful operational signals include:
+
+- total analyses and errors;
+- risk-level and threat-category distributions;
+- latency and timeout changes;
+- downstream action denials;
+- reviewed false-positive/false-negative labels;
+- configuration and library-version changes.
+
+Do not include prompt text, user IDs, or high-cardinality secrets in metrics labels. Export snapshots to your own monitoring system if persistence is required; crate metrics are in-process state.
+
+## Failure Policy
+
+Choose behavior deliberately for each failure class:
+
+| Failure | Possible policy considerations |
+| --- | --- |
+| Invalid configuration at startup | Fail startup and keep the last reviewed deployment |
+| Invalid/oversized input | Return a bounded client-safe error; do not invoke downstream systems |
+| Analysis timeout or internal error | Fail closed for high-impact paths; use a restricted fallback for lower-risk paths only if explicitly designed |
+| Metrics/export failure | Avoid blocking security decisions solely for telemetry |
+| Detector unavailable | Disable tool capabilities or route to review rather than silently bypassing policy |
+
+Document the selected policy and test it. “Fail closed” can itself create an availability risk, so combine it with resource limits and operational recovery.
+
+## Testing and Calibration
+
+Maintain versioned tests that represent the deployment:
+
+- benign inputs, including quoted attacks and security discussions;
+- direct and indirect injections;
+- obfuscated, encoded, multilingual, and long inputs;
+- multi-turn sequences tested at the application layer;
+- each tool and privilege boundary;
+- model outputs that attempt unexpected tool actions;
+- timeout, overload, and malformed-configuration behavior.
+
+Keep evaluation and tuning data separate from production secrets. Repository example fixture rates are not substitutes for this work.
 
 ## Incident Response
 
-When FluxPrompt flags high-risk or critical content:
+When a suspected injection reaches or influences a sensitive action:
 
-1. Block or quarantine the request according to your configured response strategy.
-2. Capture the minimum evidence needed for investigation.
-3. Alert the appropriate security or incident-response path.
-4. Review whether new custom patterns, thresholds, or upstream controls are needed.
-5. Record the change in version-controlled policy or configuration artifacts.
+1. contain the affected session, credentials, tools, and queued actions;
+2. preserve the minimum necessary evidence under your incident policy;
+3. determine the input provenance and downstream capabilities involved;
+4. inspect actions and data access, not only the detector decision;
+5. add a regression case and improve capability controls before relying on a new regex;
+6. rotate exposed credentials and notify affected parties when required;
+7. report a FluxPrompt bypass privately if it indicates a library weakness.
 
-For repository-level vulnerability disclosure, follow [../SECURITY.md](../SECURITY.md).
+Follow [SECURITY.md](../SECURITY.md) for repository vulnerability reporting.
 
-## Compliance Notes
+## Supply-Chain Practices
 
-- Privacy-sensitive deployments should minimize prompt retention, minimize metrics content, and avoid logging directly identifying data where possible.
-- Regulated environments should pair FluxPrompt with upstream authentication, authorization, audit logging, and data-classification controls.
-- If you maintain domain-specific rules for healthcare, finance, or other regulated content, keep those rules versioned and reviewed like application code.
+- Commit `Cargo.lock` in deployed applications and review dependency changes.
+- Run the repository's audit and policy checks.
+- Verify the crates.io package, release tag, and source provenance appropriate to your environment.
+- Rebuild from source in a controlled pipeline rather than relying on unverified artifacts.
+
+The official registry package is [`fluxprompt`](https://crates.io/crates/fluxprompt).

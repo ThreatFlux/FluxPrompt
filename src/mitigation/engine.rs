@@ -18,14 +18,20 @@ impl MitigationEngine {
     /// Creates a new mitigation engine.
     #[instrument(skip(config))]
     pub async fn new(config: &DetectionConfig) -> Result<Self> {
+        config.validate()?;
+        Ok(Self::from_validated_config(config))
+    }
+
+    /// Creates a mitigation engine from a configuration validated by the caller.
+    pub(crate) fn from_validated_config(config: &DetectionConfig) -> Self {
         debug!("Initializing mitigation engine");
 
-        let sanitizer = Arc::new(TextSanitizer::new(config)?);
+        let sanitizer = Arc::new(TextSanitizer::from_validated_config(config));
 
-        Ok(Self {
+        Self {
             sanitizer,
             config: config.clone(),
-        })
+        }
     }
 
     /// Applies appropriate mitigation strategy based on detection results.
@@ -47,7 +53,7 @@ impl MitigationEngine {
                 Ok(self.add_warning_prefix(original_prompt))
             }
             ResponseStrategy::Block => {
-                debug!("Block strategy: blocking prompt entirely");
+                debug!("Block strategy: returning a block response");
                 Ok(self.generate_block_message(detection_result))
             }
             ResponseStrategy::Sanitize => {
@@ -110,8 +116,9 @@ impl MitigationEngine {
     /// Updates the mitigation configuration.
     pub async fn update_config(&mut self, config: &DetectionConfig) -> Result<()> {
         debug!("Updating mitigation engine configuration");
+        config.validate()?;
 
-        self.sanitizer = Arc::new(TextSanitizer::new(config)?);
+        self.sanitizer = Arc::new(TextSanitizer::from_validated_config(config));
         self.config = config.clone();
 
         Ok(())
@@ -146,6 +153,10 @@ mod tests {
         let config = DetectionConfig::default();
         let engine = MitigationEngine::new(&config).await;
         assert!(engine.is_ok());
+
+        let mut invalid = config;
+        invalid.pattern_config.max_patterns = 0;
+        assert!(MitigationEngine::new(&invalid).await.is_err());
     }
 
     #[tokio::test]

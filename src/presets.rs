@@ -1,7 +1,7 @@
-//! Configuration presets for common use cases.
+//! Named starting configurations for common application categories.
 //!
-//! This module provides pre-configured security profiles optimized for different
-//! application types and security requirements.
+//! Preset names do not imply measured accuracy, compliance, or fitness for a
+//! deployment. Inspect, validate, and calibrate the resulting configuration.
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,23 +13,23 @@ use crate::config::{
 use crate::features::Features;
 use crate::types::PreprocessingConfig;
 
-/// Predefined configuration presets for common use cases.
+/// Predefined starting configurations.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Preset {
-    /// High accuracy with low false positives for chatbots
+    /// Chat-oriented starting values
     #[default]
     ChatBot,
-    /// Allow technical terms, block exploits for code assistants
+    /// Code-assistant-oriented starting values
     CodeAssistant,
-    /// Professional tone with moderate security for customer service
+    /// Customer-service-oriented starting values
     CustomerService,
-    /// Allow learning content, block attacks for educational platforms
+    /// Education-oriented starting values
     Educational,
-    /// Maximum security with strict validation for financial applications
+    /// More sensitive, blocking starting values labeled for financial use
     Financial,
-    /// HIPAA compliant with PII protection for healthcare
+    /// More sensitive, blocking starting values labeled for healthcare use
     Healthcare,
-    /// Minimal filtering with comprehensive logging for development
+    /// More permissive starting values for development
     Development,
     /// User-defined custom configuration
     Custom,
@@ -39,32 +39,32 @@ impl Preset {
     /// Returns a human-readable description of the preset.
     pub fn description(&self) -> &str {
         match self {
-            Preset::ChatBot => "High accuracy, low false positives for general chatbots",
-            Preset::CodeAssistant => "Technical-friendly with exploit protection for code helpers",
-            Preset::CustomerService => "Professional tone with moderate security filtering",
-            Preset::Educational => "Learning-focused with attack prevention",
-            Preset::Financial => "Maximum security for financial and sensitive applications",
-            Preset::Healthcare => "HIPAA compliant with comprehensive PII protection",
-            Preset::Development => "Developer-friendly with minimal interference",
+            Preset::ChatBot => "Level 5 with a sanitize response strategy",
+            Preset::CodeAssistant => "Level 4 with a warning response strategy",
+            Preset::CustomerService => "Level 6 with a block response strategy",
+            Preset::Educational => "Level 3 with a sanitize response strategy",
+            Preset::Financial => "Level 9 with a block response strategy",
+            Preset::Healthcare => "Level 8 with a block response strategy",
+            Preset::Development => "Level 2 with an allow response strategy",
             Preset::Custom => "User-defined custom configuration",
         }
     }
 
-    /// Returns the recommended security level for this preset.
+    /// Returns the configured security level for this preset.
     pub fn security_level(&self) -> SecurityLevel {
         match self {
-            Preset::ChatBot => SecurityLevel::new(5).unwrap(), // Balanced
-            Preset::CodeAssistant => SecurityLevel::new(4).unwrap(), // Moderate
-            Preset::CustomerService => SecurityLevel::new(6).unwrap(), // Enhanced
-            Preset::Educational => SecurityLevel::new(3).unwrap(), // Light
-            Preset::Financial => SecurityLevel::new(9).unwrap(), // Near-paranoid
-            Preset::Healthcare => SecurityLevel::new(8).unwrap(), // Very strict
-            Preset::Development => SecurityLevel::new(2).unwrap(), // Permissive
-            Preset::Custom => SecurityLevel::new(5).unwrap(),  // Default balanced
+            Preset::ChatBot => SecurityLevel::new(5).unwrap(),
+            Preset::CodeAssistant => SecurityLevel::new(4).unwrap(),
+            Preset::CustomerService => SecurityLevel::new(6).unwrap(),
+            Preset::Educational => SecurityLevel::new(3).unwrap(),
+            Preset::Financial => SecurityLevel::new(9).unwrap(),
+            Preset::Healthcare => SecurityLevel::new(8).unwrap(),
+            Preset::Development => SecurityLevel::new(2).unwrap(),
+            Preset::Custom => SecurityLevel::new(5).unwrap(),
         }
     }
 
-    /// Returns the recommended response strategy for this preset.
+    /// Returns the configured response strategy for this preset.
     pub fn response_strategy(&self) -> ResponseStrategy {
         match self {
             Preset::ChatBot => ResponseStrategy::Sanitize,
@@ -78,7 +78,9 @@ impl Preset {
         }
     }
 
-    /// Returns the recommended features configuration for this preset.
+    /// Returns feature-descriptor metadata for this preset.
+    ///
+    /// The current detector does not consume these individual flags.
     pub fn features(&self) -> Features {
         match self {
             Preset::ChatBot => Features {
@@ -145,17 +147,17 @@ impl Preset {
                 code_injection_detection: true,
                 system_prompt_leak_detection: true,
             },
-            Preset::Financial => Features::all_enabled(), // Maximum security
+            Preset::Financial => Features::all_enabled(),
             Preset::Healthcare => Features {
                 pattern_matching: true,
                 heuristic_analysis: true,
-                semantic_detection: true, // Enhanced detection for PII
+                semantic_detection: true,
                 encoding_detection: true,
                 social_engineering_detection: true,
                 context_hijacking_detection: true,
                 role_play_detection: true,
                 data_extraction_detection: true,
-                multi_modal_detection: true, // Scan all content types
+                multi_modal_detection: true,
                 custom_patterns: true,
                 jailbreak_detection: true,
                 instruction_override_detection: true,
@@ -269,7 +271,7 @@ impl Preset {
         }
     }
 
-    /// Returns the recommended semantic configuration for this preset.
+    /// Returns the keyword-based semantic heuristic configuration for this preset.
     pub fn semantic_config(&self) -> SemanticConfig {
         match self {
             Preset::ChatBot => SemanticConfig {
@@ -297,14 +299,14 @@ impl Preset {
                 max_context_length: 512,
             },
             Preset::Financial => SemanticConfig {
-                enabled: true, // Maximum detection
-                model_name: Some("sentence-transformers/all-MiniLM-L6-v2".to_string()),
-                similarity_threshold: 0.7, // Lower threshold for higher sensitivity
+                enabled: true,
+                model_name: None,
+                similarity_threshold: 0.7,
                 max_context_length: 1024,
             },
             Preset::Healthcare => SemanticConfig {
-                enabled: true, // PII detection benefits from semantic analysis
-                model_name: Some("sentence-transformers/all-MiniLM-L6-v2".to_string()),
+                enabled: true,
+                model_name: None,
                 similarity_threshold: 0.75,
                 max_context_length: 1024,
             },
@@ -371,7 +373,7 @@ impl Preset {
     pub fn resource_config(&self) -> ResourceConfig {
         match self {
             Preset::ChatBot => ResourceConfig {
-                max_concurrent_analyses: 200, // High throughput for chatbots
+                max_concurrent_analyses: 200,
                 analysis_timeout: Duration::from_secs(5),
                 max_memory_mb: 256,
                 pattern_cache_size: 1000,
@@ -416,69 +418,31 @@ impl Preset {
         }
     }
 
-    /// Returns custom configuration values specific to this preset.
+    /// Returns neutral metadata identifying this preset's deployment domain.
+    ///
+    /// `preset_type` and `optimize_for` retain their original wire values for
+    /// compatibility. These entries are descriptive host metadata, not runtime
+    /// behavior or compliance assertions.
     pub fn custom_config(&self) -> HashMap<String, String> {
-        let mut config = HashMap::new();
+        let (deployment_domain, optimize_for) = match self {
+            Preset::ChatBot => ("chatbot", "user_experience"),
+            Preset::CodeAssistant => ("code_assistant", "technical_accuracy"),
+            Preset::CustomerService => ("customer_service", "professionalism"),
+            Preset::Educational => ("educational", "learning_support"),
+            Preset::Financial => ("financial", "maximum_security"),
+            Preset::Healthcare => ("healthcare", "privacy_protection"),
+            Preset::Development => ("development", "developer_productivity"),
+            Preset::Custom => ("custom", "user_defined"),
+        };
 
-        match self {
-            Preset::ChatBot => {
-                config.insert("preset_type".to_string(), "chatbot".to_string());
-                config.insert("optimize_for".to_string(), "user_experience".to_string());
-                config.insert("false_positive_tolerance".to_string(), "low".to_string());
-            }
-            Preset::CodeAssistant => {
-                config.insert("preset_type".to_string(), "code_assistant".to_string());
-                config.insert("optimize_for".to_string(), "technical_accuracy".to_string());
-                config.insert("code_context_aware".to_string(), "true".to_string());
-                config.insert("programming_languages".to_string(), "all".to_string());
-            }
-            Preset::CustomerService => {
-                config.insert("preset_type".to_string(), "customer_service".to_string());
-                config.insert("optimize_for".to_string(), "professionalism".to_string());
-                config.insert("escalation_triggers".to_string(), "enabled".to_string());
-            }
-            Preset::Educational => {
-                config.insert("preset_type".to_string(), "educational".to_string());
-                config.insert("optimize_for".to_string(), "learning_support".to_string());
-                config.insert("academic_integrity".to_string(), "enforced".to_string());
-                config.insert("age_appropriate".to_string(), "true".to_string());
-            }
-            Preset::Financial => {
-                config.insert("preset_type".to_string(), "financial".to_string());
-                config.insert("optimize_for".to_string(), "maximum_security".to_string());
-                config.insert("compliance_mode".to_string(), "strict".to_string());
-                config.insert("audit_logging".to_string(), "comprehensive".to_string());
-                config.insert("pci_dss_compliant".to_string(), "true".to_string());
-                config.insert("sox_compliant".to_string(), "true".to_string());
-            }
-            Preset::Healthcare => {
-                config.insert("preset_type".to_string(), "healthcare".to_string());
-                config.insert("optimize_for".to_string(), "privacy_protection".to_string());
-                config.insert("hipaa_compliant".to_string(), "true".to_string());
-                config.insert("phi_protection".to_string(), "enabled".to_string());
-                config.insert("gdpr_compliant".to_string(), "true".to_string());
-                config.insert("pii_detection".to_string(), "enhanced".to_string());
-            }
-            Preset::Development => {
-                config.insert("preset_type".to_string(), "development".to_string());
-                config.insert(
-                    "optimize_for".to_string(),
-                    "developer_productivity".to_string(),
-                );
-                config.insert("debug_mode".to_string(), "enabled".to_string());
-                config.insert("verbose_logging".to_string(), "true".to_string());
-                config.insert(
-                    "bypass_warnings".to_string(),
-                    "development_only".to_string(),
-                );
-            }
-            Preset::Custom => {
-                config.insert("preset_type".to_string(), "custom".to_string());
-                config.insert("optimize_for".to_string(), "user_defined".to_string());
-            }
-        }
-
-        config
+        HashMap::from([
+            (
+                "deployment_domain".to_string(),
+                deployment_domain.to_string(),
+            ),
+            ("preset_type".to_string(), deployment_domain.to_string()),
+            ("optimize_for".to_string(), optimize_for.to_string()),
+        ])
     }
 
     /// Creates a complete DetectionConfig from this preset.
@@ -513,7 +477,10 @@ impl Preset {
         ]
     }
 
-    /// Returns the preset that best matches the given requirements.
+    /// Returns candidate presets selected by keyword and label heuristics.
+    ///
+    /// Callers must inspect and calibrate each result; this does not establish
+    /// fitness for a deployment.
     pub fn recommend_for_use_case(
         use_case: &str,
         security_priority: &str,
@@ -725,7 +692,7 @@ mod tests {
     fn test_preset_semantic_configs() {
         let financial_semantic = Preset::Financial.semantic_config();
         assert!(financial_semantic.enabled);
-        assert!(financial_semantic.model_name.is_some());
+        assert!(financial_semantic.model_name.is_none());
 
         let healthcare_semantic = Preset::Healthcare.semantic_config();
         assert!(healthcare_semantic.enabled);
@@ -771,20 +738,56 @@ mod tests {
 
     #[test]
     fn test_preset_custom_configs() {
-        let financial_custom = Preset::Financial.custom_config();
-        assert!(financial_custom.contains_key("preset_type"));
-        assert!(!financial_custom.contains_key("hipaa_compliant")); // Financial, not healthcare
-        assert!(financial_custom.contains_key("pci_dss_compliant"));
-        assert!(financial_custom.contains_key("sox_compliant"));
+        let cases = [
+            (Preset::ChatBot, "chatbot", "user_experience"),
+            (
+                Preset::CodeAssistant,
+                "code_assistant",
+                "technical_accuracy",
+            ),
+            (
+                Preset::CustomerService,
+                "customer_service",
+                "professionalism",
+            ),
+            (Preset::Educational, "educational", "learning_support"),
+            (Preset::Financial, "financial", "maximum_security"),
+            (Preset::Healthcare, "healthcare", "privacy_protection"),
+            (Preset::Development, "development", "developer_productivity"),
+            (Preset::Custom, "custom", "user_defined"),
+        ];
 
-        let healthcare_custom = Preset::Healthcare.custom_config();
-        assert!(healthcare_custom.contains_key("hipaa_compliant"));
-        assert!(healthcare_custom.contains_key("phi_protection"));
-        assert!(healthcare_custom.contains_key("gdpr_compliant"));
+        for (preset, preset_type, optimize_for) in cases {
+            let custom = preset.custom_config();
+            assert_eq!(
+                custom.get("deployment_domain").map(String::as_str),
+                Some(preset_type)
+            );
+            assert_eq!(
+                custom.get("preset_type").map(String::as_str),
+                Some(preset_type)
+            );
+            assert_eq!(
+                custom.get("optimize_for").map(String::as_str),
+                Some(optimize_for)
+            );
+        }
 
-        let dev_custom = Preset::Development.custom_config();
-        assert!(dev_custom.contains_key("debug_mode"));
-        assert!(dev_custom.contains_key("verbose_logging"));
+        for custom in [
+            Preset::Financial.custom_config(),
+            Preset::Healthcare.custom_config(),
+        ] {
+            for unsupported_claim in [
+                "compliance_mode",
+                "pci_dss_compliant",
+                "sox_compliant",
+                "hipaa_compliant",
+                "gdpr_compliant",
+                "phi_protection",
+            ] {
+                assert!(!custom.contains_key(unsupported_claim));
+            }
+        }
     }
 
     #[test]
@@ -793,7 +796,20 @@ mod tests {
         assert_eq!(chatbot_config.security_level.level(), 5);
         assert_eq!(chatbot_config.response_strategy, ResponseStrategy::Sanitize);
         assert!(chatbot_config.enable_metrics);
-        assert!(chatbot_config.custom_config.contains_key("preset_type"));
+        assert_eq!(
+            chatbot_config
+                .custom_config
+                .get("deployment_domain")
+                .map(String::as_str),
+            Some("chatbot")
+        );
+        assert_eq!(
+            chatbot_config
+                .custom_config
+                .get("preset_type")
+                .map(String::as_str),
+            Some("chatbot")
+        );
 
         let financial_config = Preset::Financial.to_detection_config();
         assert_eq!(financial_config.security_level.level(), 9);
@@ -886,7 +902,7 @@ mod tests {
         let dev_features = Preset::Development.features();
         assert!(dev_features.enabled_count() < financial_features.enabled_count());
 
-        // Healthcare should have comprehensive features for PII protection
+        // Healthcare enables more feature-descriptor metadata than development.
         let healthcare_features = Preset::Healthcare.features();
         assert!(healthcare_features.semantic_detection);
         assert!(healthcare_features.multi_modal_detection);
