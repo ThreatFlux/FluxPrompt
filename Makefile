@@ -2,7 +2,7 @@
         fmt-check build-examples test-doc doc-check doc-links \
         deny outdated security-geiger security-supply-chain semver-check \
         markdownlint package-check \
-        msrv msrv-install security-enhanced ci-local validate analyze examples release-prep dev
+        msrv msrv-install security-enhanced ci-local validate analyze examples release-prep dev hooks-install
 
 RUST_MSRV := 1.97.1
 
@@ -12,17 +12,21 @@ all: ci-local
 # CI simulation - matches GitHub Actions CI workflow
 ci: ci-local
 
+# Install the repository gate without changing hooks in sibling worktrees.
+hooks-install:
+	@bash scripts/install-hooks.sh
+
 # Install required tools
 install-tools:
 	@echo "📦 Installing required tools..."
 	@command -v cargo-audit >/dev/null 2>&1 || cargo install --locked cargo-audit --version 0.22.2
-	@command -v cargo-outdated >/dev/null 2>&1 || cargo install --locked cargo-outdated
+	@command -v cargo-outdated >/dev/null 2>&1 || cargo install --locked cargo-outdated --version 0.19.0
 	@command -v cargo-deny >/dev/null 2>&1 || cargo install --locked cargo-deny --version 0.20.2
-	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install --locked cargo-llvm-cov --version 0.8.7
-	@command -v cargo-deadlinks >/dev/null 2>&1 || cargo install --locked cargo-deadlinks
-	@command -v cargo-geiger >/dev/null 2>&1 || cargo install cargo-geiger --locked
-	@command -v cargo-supply-chain >/dev/null 2>&1 || cargo install cargo-supply-chain --locked
-	@command -v cargo-semver-checks >/dev/null 2>&1 || cargo install cargo-semver-checks --locked
+	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install --locked cargo-llvm-cov --version 0.9.1
+	@command -v cargo-deadlinks >/dev/null 2>&1 || cargo install --locked cargo-deadlinks --version 0.8.1
+	@command -v cargo-geiger >/dev/null 2>&1 || cargo install --locked cargo-geiger --version 0.13.0
+	@command -v cargo-supply-chain >/dev/null 2>&1 || cargo install --locked cargo-supply-chain --version 0.3.7
+	@command -v cargo-semver-checks >/dev/null 2>&1 || cargo install --locked cargo-semver-checks --version 0.51.0
 	@echo "✅ Tools installed"
 
 # Format code
@@ -40,7 +44,7 @@ fmt-check:
 # Lint Markdown documentation
 markdownlint:
 	@echo "📝 Linting Markdown..."
-	@npx --yes markdownlint-cli2@0.23.2
+	@npx --yes markdownlint-cli2@0.23.3
 	@python3 scripts/check_docs.py
 	@echo "✅ Markdown lint passed"
 
@@ -95,7 +99,7 @@ doc-check:
 # Run security audit
 audit:
 	@echo "🔒 Running security audit..."
-	@cargo audit
+	@cargo audit --deny warnings
 	@echo "✅ Security audit passed"
 
 # Check with cargo-deny
@@ -155,11 +159,11 @@ bench:
 msrv:
 	@echo "🦀 Checking MSRV ($(RUST_MSRV))..."
 	@if rustup toolchain list | grep -q "$(RUST_MSRV)"; then \
-		cargo +$(RUST_MSRV) check --locked; \
+		cargo +$(RUST_MSRV) check --locked --all-targets; \
 	else \
 		echo "⚠️  MSRV toolchain $(RUST_MSRV) not installed. Installing..."; \
 		rustup toolchain install $(RUST_MSRV) --component rustfmt,clippy; \
-		cargo +$(RUST_MSRV) check --locked; \
+		cargo +$(RUST_MSRV) check --locked --all-targets; \
 	fi
 	@echo "✅ MSRV check complete"
 
