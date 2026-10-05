@@ -13,6 +13,7 @@ permissions:
   contents: read
 
 env:
+  RUSTUP_TOOLCHAIN: "1.99.0"
   RUSTDOCFLAGS: "-D warnings"
 
 concurrency:
@@ -30,9 +31,15 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
-          toolchain: 1.97.1
+          toolchain: 1.99.0
+
+      - name: Verify selected Rust compiler
+        run: |
+          rustup show active-toolchain
+          rustc --version --verbose
+          cargo --version
 
       - name: Cache cargo registry
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -84,4 +91,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

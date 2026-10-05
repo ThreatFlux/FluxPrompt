@@ -12,6 +12,7 @@ on:
   workflow_dispatch:
 
 env:
+  RUSTUP_TOOLCHAIN: "1.99.0"
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
@@ -36,13 +37,13 @@ jobs:
           node-version: "24"
 
       - name: Lint Markdown
-        run: npx --yes markdownlint-cli2@0.23.2
+        run: npx --yes markdownlint-cli2@0.23.3
 
       - name: Check documentation contracts
         run: python3 scripts/check_docs.py
 
   test:
-    name: Test Suite (Rust 1.97.1)
+    name: Test Suite (Rust 1.99.0)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -51,10 +52,16 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
-          toolchain: "1.97.1"
+          toolchain: "1.99.0"
           components: rustfmt, clippy
+
+      - name: Verify selected Rust compiler
+        run: |
+          rustup show active-toolchain
+          rustc --version --verbose
+          cargo --version
 
       - name: Cache cargo registry
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -72,7 +79,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-1.97.1-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-1.99.0-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Check formatting
         run: cargo fmt -- --check
@@ -95,21 +102,26 @@ jobs:
   compatibility:
     name: Compatibility (${{ matrix.os }}, ${{ matrix.rust }})
     runs-on: ${{ matrix.os }}
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            rust: stable
+            rust: "1.99.0"
+            run_lib_tests: false
+          - os: ubuntu-latest
+            rust: "1.97.1"
             run_lib_tests: false
           - os: ubuntu-latest
             rust: beta
             run_lib_tests: false
           - os: windows-latest
-            rust: stable
+            rust: "1.99.0"
             run_lib_tests: true
           - os: macos-latest
-            rust: stable
+            rust: "1.99.0"
             run_lib_tests: true
     steps:
       - name: Checkout sources
@@ -118,9 +130,15 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
           toolchain: ${{ matrix.rust }}
+
+      - name: Verify selected Rust compiler
+        run: |
+          rustup show active-toolchain
+          rustc --version --verbose
+          cargo --version
 
       - name: Cache cargo registry
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -152,25 +170,32 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
-          toolchain: "1.97.1"
+          toolchain: "1.99.0"
           components: llvm-tools-preview
 
+      - name: Verify selected Rust compiler
+        run: |
+          rustup show active-toolchain
+          rustc --version --verbose
+          cargo --version
+
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2.85.13
+        uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
         with:
-          tool: cargo-llvm-cov@0.8.7
+          tool: cargo-llvm-cov@0.9.1
 
       - name: Generate code coverage
         run: cargo llvm-cov --locked --workspace --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
           fail_ci_if_error: false
+          version: "v11.3.1"
 
   benchmarks:
     name: Benchmarks
@@ -183,9 +208,15 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
-          toolchain: "1.97.1"
+          toolchain: "1.99.0"
+
+      - name: Verify selected Rust compiler
+        run: |
+          rustup show active-toolchain
+          rustc --version --verbose
+          cargo --version
 
       - name: Cache cargo registry
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

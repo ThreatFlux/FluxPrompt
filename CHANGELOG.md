@@ -4,6 +4,11 @@ Notable user-visible changes are recorded here. This project uses the structure 
 
 ## [Unreleased]
 
+### Changed
+
+- Updated the development toolchain to Rust 1.99.0, stable dependencies, and GitHub Actions while retaining Rust 1.97.1 as the minimum supported version.
+- Added explicit CI compiler verification and an MSRV compatibility lane, and a worktree-specific pre-push local CI gate.
+
 ## [0.2.0] - 2026-08-03
 
 ### Added

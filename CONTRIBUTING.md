@@ -6,7 +6,7 @@ By participating, follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report vulne
 
 ## Prerequisites
 
-- Rust 1.97.1, pinned by `rust-toolchain.toml`, with Rustfmt and Clippy;
+- Rust 1.99.0, pinned by `rust-toolchain.toml`, with Rustfmt and Clippy;
 - Git;
 - Python 3 for the dependency-free documentation consistency check;
 - Node.js/npm only when running Markdownlint locally;
@@ -21,6 +21,7 @@ git clone https://github.com/ThreatFlux/FluxPrompt.git
 cd FluxPrompt
 cargo build
 cargo test
+make hooks-install
 ```
 
 Create a focused branch from current `main`. Keep generated reports, local configuration, credentials, model files, and build artifacts out of commits.
@@ -59,11 +60,13 @@ cargo test --doc --locked
 RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps
 cargo build --locked --examples
 python3 scripts/check_docs.py
-npx --yes markdownlint-cli2@0.23.2
+npx --yes markdownlint-cli2@0.23.3
 python3 scripts/check_package.py
 ```
 
 `make ci-local` runs the repository's local CI approximation. Inspect the Makefile and GitHub workflows when exact parity matters; security and coverage tools may require separate installation and can take longer.
+
+`make hooks-install` installs the repository's pre-push `make ci-local` gate for the current worktree. The development toolchain is Rust 1.99.0; Rust 1.97.1 remains the minimum supported version and has its own compatibility check.
 
 Useful focused commands:
 

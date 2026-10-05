@@ -16,6 +16,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RUSTUP_TOOLCHAIN: "1.99.0"
+
 jobs:
   audit:
     name: Security Audit
@@ -27,9 +30,15 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
-          toolchain: 1.97.1
+          toolchain: 1.99.0
+
+      - name: Verify selected Rust compiler
+        run: |
+          rustup show active-toolchain
+          rustc --version --verbose
+          cargo --version
 
       - name: Cache cargo registry
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -44,7 +53,7 @@ jobs:
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-audit
-        uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2.85.13
+        uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
         with:
           tool: cargo-audit@0.22.2
 
@@ -61,12 +70,18 @@ jobs:
           persist-credentials: false
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
         with:
-          toolchain: 1.97.1
+          toolchain: 1.99.0
+
+      - name: Verify selected Rust compiler
+        run: |
+          rustup show active-toolchain
+          rustc --version --verbose
+          cargo --version
 
       - name: Install cargo-deny
-        uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2.85.13
+        uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
         with:
           tool: cargo-deny@0.20.2
 
@@ -99,8 +114,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # master
+        with:
+          toolchain: 1.99.0
+
+      - name: Verify selected Rust compiler
+        run: |
+          rustup show active-toolchain
+          rustc --version --verbose
+          cargo --version
+
       - name: Check semver compliance
         uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
         with:
           baseline-rev: ${{ github.event.pull_request.base.sha }}
-          rust-toolchain: 1.97.1
+          rust-toolchain: 1.99.0

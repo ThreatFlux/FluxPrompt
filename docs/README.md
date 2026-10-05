@@ -28,6 +28,7 @@ Use this page to find the shortest path for your task. Item-level Rust API docum
 | [Security policy](../SECURITY.md) | Private vulnerability and bypass reporting |
 | [Changelog](../CHANGELOG.md) | Released and pending user-visible changes |
 | [Releasing](RELEASING.md) | Maintainer release checklist and current automation behavior |
+| [Stable tooling refresh](MODERNIZATION-2026-10-05.md) | Rust, dependency, action, and compatibility evidence for the October refresh |
 | [Code of conduct](../CODE_OF_CONDUCT.md) | Community participation expectations |
 
 ## Documentation Rules
