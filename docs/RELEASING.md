@@ -64,7 +64,7 @@ Dispatch `auto-release.yml` with `dry_run` enabled to see the version and action
 
 1. verifies that the tag, any requested version, and `Cargo.toml` agree;
 2. requires an annotated tag whose commit is reachable from `origin/main`;
-3. builds the library in release mode for Linux (x86_64 glibc and musl, aarch64), macOS (Apple silicon and Intel), and Windows, and runs the library tests on each native target;
+3. builds the library in release mode for Linux (x86_64 glibc and musl, aarch64), macOS (Apple silicon and Intel), and Windows, runs the library tests on each native target, and runs the complete test suite (unit, integration, and doc tests) on x86_64 Linux;
 4. generates a CycloneDX SBOM;
 5. runs `scripts/check_package.py` and `cargo package --locked`;
 6. skips publication if this version is already on crates.io with a byte-identical archive (so a rerun is safe) and fails if the registry archive differs, otherwise publishes with a trusted-publishing token from the `crates-io` environment;

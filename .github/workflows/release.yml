@@ -150,6 +150,8 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             test: true
+            # This lane runs the whole suite: unit, integration and doc tests.
+            full_suite: true
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             test: false
@@ -185,7 +187,9 @@ jobs:
           cargo --version
 
       # FluxPrompt is a library crate: no binaries are attached to releases.
-      # Every target must compile the published library in release mode.
+      # Every target must compile the published library in release mode and
+      # pass its library tests; x86_64 Linux also runs the integration tests
+      # and doctests.
       - name: Build library
         shell: bash
         env:
@@ -193,11 +197,17 @@ jobs:
         run: cargo build --locked --release --lib --all-features --target "$TARGET"
 
       - name: Run library tests
-        if: matrix.test
+        if: matrix.test && !matrix.full_suite
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
         run: cargo test --locked --release --lib --all-features --target "$TARGET"
+
+      # Publishing is gated on this job, so the complete suite runs here too:
+      # a manually pushed tag can be released before its CI run finishes.
+      - name: Run full test suite
+        if: matrix.full_suite
+        run: cargo test --locked --release --all-features
 
   sbom:
     name: Generate Release SBOM
