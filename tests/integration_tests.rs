@@ -17,12 +17,18 @@ async fn test_end_to_end_detection_flow() {
     let detector = FluxPrompt::new(config).await.unwrap();
 
     // Test safe input
+    let started = std::time::Instant::now();
     let safe_result = detector
         .analyze("Hello, how can I help you today?")
         .await
         .unwrap();
+    let elapsed = started.elapsed();
     assert!(!safe_result.detection_result().is_injection_detected());
-    assert!(safe_result.detection_result().analysis_duration_ms() > 0);
+    // The recorded duration is truncated to whole milliseconds, so a fast
+    // analysis may report 0 ms, but never more than the caller observed.
+    assert!(
+        u128::from(safe_result.detection_result().analysis_duration_ms()) <= elapsed.as_millis()
+    );
 
     // Test malicious input
     let malicious_result = detector
