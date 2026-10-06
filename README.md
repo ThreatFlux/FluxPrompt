@@ -21,7 +21,7 @@ FluxPrompt is an early-stage `0.2.x` library. Detection is fallible policy input
 
 ## Quick Start
 
-FluxPrompt 0.2.0 requires Rust 1.97.1 or later. Add FluxPrompt and Tokio to your application:
+FluxPrompt 0.2.1 requires Rust 1.97.1 or later. Add FluxPrompt and Tokio to your application:
 
 ```toml
 [dependencies]
@@ -30,7 +30,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 Applications should commit `Cargo.lock`. Consumers that require exact dependency selection can use
-`fluxprompt = "=0.2.0"` and review updates deliberately.
+`fluxprompt = "=0.2.1"` and review updates deliberately.
 
 The following program is also available as [`examples/basic_detection.rs`](examples/basic_detection.rs):
 
