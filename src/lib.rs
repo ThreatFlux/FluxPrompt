@@ -336,6 +336,23 @@ impl FluxPrompt {
 mod tests {
     use super::*;
 
+    /// Analysis duration is truncated to whole milliseconds, so a fast
+    /// analysis (for example in a release build) legitimately records 0 ms.
+    /// A completed analysis must still fit inside the default cooperative
+    /// timeout.
+    fn assert_recorded_duration(duration_ms: u64) {
+        let timeout_ms = u64::try_from(
+            crate::config::ResourceConfig::default()
+                .analysis_timeout
+                .as_millis(),
+        )
+        .expect("default analysis timeout fits in u64 milliseconds");
+        assert!(
+            duration_ms < timeout_ms,
+            "analysis took {duration_ms} ms, beyond the {timeout_ms} ms default timeout"
+        );
+    }
+
     #[tokio::test]
     async fn test_basic_detection() {
         let config = DetectionConfig::default();
@@ -572,7 +589,7 @@ mod tests {
             let result = detector.analyze("Please help me urgently").await.unwrap();
 
             // Should complete without error regardless of severity
-            assert!(result.detection_result().analysis_duration_ms() > 0);
+            assert_recorded_duration(result.detection_result().analysis_duration_ms());
         }
     }
 
@@ -692,7 +709,7 @@ mod tests {
         assert!(result.is_ok(), "Should handle long input");
 
         if let Ok(analysis_result) = result {
-            assert!(analysis_result.detection_result().analysis_duration_ms() > 0);
+            assert_recorded_duration(analysis_result.detection_result().analysis_duration_ms());
         }
     }
 
@@ -710,7 +727,7 @@ mod tests {
         let result = detector.analyze(semantic_test).await.unwrap();
 
         // Should complete without error
-        assert!(result.detection_result().analysis_duration_ms() > 0);
+        assert_recorded_duration(result.detection_result().analysis_duration_ms());
     }
 
     #[tokio::test]
@@ -725,6 +742,6 @@ mod tests {
         let result = detector.analyze("Test input").await.unwrap();
 
         // Should handle custom strategy without error
-        assert!(result.detection_result().analysis_duration_ms() > 0);
+        assert_recorded_duration(result.detection_result().analysis_duration_ms());
     }
 }

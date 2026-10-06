@@ -959,6 +959,23 @@ mod tests {
     use crate::types::{TextSpan, ThreatInfo, ThreatType};
     use std::time::Duration;
 
+    /// Analysis duration is truncated to whole milliseconds, so a fast
+    /// analysis (for example in a release build) legitimately records 0 ms.
+    /// A completed analysis must still fit inside the default cooperative
+    /// timeout.
+    fn assert_recorded_duration(duration_ms: u64) {
+        let timeout_ms = u64::try_from(
+            crate::config::ResourceConfig::default()
+                .analysis_timeout
+                .as_millis(),
+        )
+        .expect("default analysis timeout fits in u64 milliseconds");
+        assert!(
+            duration_ms < timeout_ms,
+            "analysis took {duration_ms} ms, beyond the {timeout_ms} ms default timeout"
+        );
+    }
+
     #[tokio::test]
     async fn test_engine_creation() {
         let config = DetectionConfig::default();
@@ -1053,10 +1070,7 @@ mod tests {
             result.threats().len() > 1,
             "Should detect multiple threats from different analyzers"
         );
-        assert!(
-            result.analysis_duration_ms() > 0,
-            "Should record analysis time"
-        );
+        assert_recorded_duration(result.analysis_duration_ms());
 
         // Should have threats from both pattern and heuristic analyzers
         let threat_types: std::collections::HashSet<_> =
@@ -1237,7 +1251,7 @@ mod tests {
         assert!(result.is_injection_detected());
         assert!(result.confidence() > 0.0);
         assert!(!result.threats().is_empty());
-        assert!(result.analysis_duration_ms() > 0);
+        assert_recorded_duration(result.analysis_duration_ms());
 
         // Test threat information
         for threat in result.threats() {
@@ -1365,7 +1379,7 @@ mod tests {
         for input in unicode_tests {
             let result = engine.analyze(input).await.unwrap();
             // Should handle unicode gracefully without panicking
-            assert!(result.analysis_duration_ms() > 0);
+            assert_recorded_duration(result.analysis_duration_ms());
         }
     }
 
