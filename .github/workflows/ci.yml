@@ -11,6 +11,13 @@ on:
       - develop
   workflow_dispatch:
 
+concurrency:
+  # Supersede outdated pull request runs. Every other run gets its own group,
+  # so no push to main is cancelled or dropped: Auto Release needs a finished
+  # run for each main commit.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   RUSTUP_TOOLCHAIN: "1.99.0"
   CARGO_TERM_COLOR: always
@@ -163,6 +170,9 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write # Codecov OIDC upload; no CODECOV_TOKEN secret is used.
     steps:
       - name: Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -192,7 +202,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          use_oidc: true
           files: lcov.info
           fail_ci_if_error: false
           version: "v11.3.1"

@@ -13,6 +13,13 @@ on:
     - cron: '0 0 * * MON'  # Weekly on Monday at midnight UTC
   workflow_dispatch:
 
+concurrency:
+  # Supersede outdated pull request runs. Every other run gets its own group,
+  # so no push to main is cancelled or dropped: Auto Release needs a finished
+  # run for each main commit.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
