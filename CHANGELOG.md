@@ -8,6 +8,8 @@ Notable user-visible changes are recorded here. This project uses the structure 
 
 - Updated the development toolchain to Rust 1.99.0, stable dependencies, and GitHub Actions while retaining Rust 1.97.1 as the minimum supported version.
 - Added explicit CI compiler verification and an MSRV compatibility lane, and a worktree-specific pre-push local CI gate.
+- Release automation now publishes to crates.io with trusted publishing (OIDC) instead of a stored registry token, cuts releases as the ThreatFlux automation GitHub App, builds and tests the library on every supported target, attaches the verified crate, checksum, and CycloneDX SBOM to the GitHub release, and supports `dry_run` rehearsals of both release workflows.
+- Coverage uploads to Codecov with OIDC instead of a stored token.
 
 ## [0.2.0] - 2026-08-03
 

@@ -157,3 +157,7 @@ TODO.txt
 TODO.md
 scratch/
 drafts/
+
+# Generated SBOMs (make sbom)
+/sbom/
+/fluxprompt-sbom.json

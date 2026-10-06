@@ -1,7 +1,7 @@
 .PHONY: all ci clean build test fmt clippy doc audit security coverage bench check install-tools help \
         fmt-check build-examples test-doc doc-check doc-links \
         deny outdated security-geiger security-supply-chain semver-check \
-        markdownlint package-check \
+        markdownlint package-check sbom \
         msrv msrv-install security-enhanced ci-local validate analyze examples release-prep dev hooks-install
 
 RUST_MSRV := 1.97.1
@@ -27,6 +27,7 @@ install-tools:
 	@command -v cargo-geiger >/dev/null 2>&1 || cargo install --locked cargo-geiger --version 0.13.0
 	@command -v cargo-supply-chain >/dev/null 2>&1 || cargo install --locked cargo-supply-chain --version 0.3.7
 	@command -v cargo-semver-checks >/dev/null 2>&1 || cargo install --locked cargo-semver-checks --version 0.51.0
+	@command -v cargo-cyclonedx >/dev/null 2>&1 || cargo install --locked cargo-cyclonedx --version 0.5.9
 	@echo "✅ Tools installed"
 
 # Format code
@@ -53,6 +54,15 @@ package-check:
 	@echo "📦 Checking Cargo package contents..."
 	@python3 scripts/check_package.py
 	@echo "✅ Cargo package contents passed"
+
+# Generate a CycloneDX SBOM for the library crate (used by release.yml)
+sbom:
+	@echo "📋 Generating CycloneDX SBOM..."
+	@mkdir -p sbom
+	@rm -f sbom/*.json fluxprompt-sbom.json
+	@cargo cyclonedx --manifest-path Cargo.toml --all-features --format json --spec-version 1.5 --override-filename fluxprompt-sbom
+	@mv fluxprompt-sbom.json sbom/
+	@echo "✅ SBOM written to sbom/fluxprompt-sbom.json"
 
 # Run clippy linter
 clippy:
@@ -184,6 +194,7 @@ clean:
 	@echo "🧹 Cleaning build artifacts..."
 	@cargo clean
 	@rm -f unsafe-report.md supply-chain-report.txt
+	@rm -rf sbom
 	@echo "✅ Clean complete"
 
 # Run examples
@@ -236,6 +247,7 @@ help:
 	@echo "  make clippy       - Run clippy linter"
 	@echo "  make markdownlint - Lint Markdown files"
 	@echo "  make package-check - Verify crates.io package contents"
+	@echo "  make sbom         - Generate a CycloneDX SBOM in sbom/"
 	@echo "  make build        - Build the project"
 	@echo "  make test         - Run tests"
 	@echo "  make test-doc     - Test documentation examples"

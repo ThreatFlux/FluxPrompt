@@ -12,6 +12,16 @@ on:
   schedule:
     - cron: '30 1 * * 1'  # Weekly on Monday at 1:30 AM UTC
 
+concurrency:
+  # Supersede outdated pull request runs. Every other run gets its own group,
+  # so no push to main is cancelled or dropped: Auto Release needs a finished
+  # run for each main commit.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
 env:
   RUSTUP_TOOLCHAIN: "1.99.0"
 
@@ -20,9 +30,9 @@ jobs:
     name: Analyze
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
-      security-events: write
+      actions: read # Read workflow run metadata for the analysis.
+      contents: read # Check out the repository.
+      security-events: write # Upload CodeQL results to code scanning.
 
     strategy:
       fail-fast: false
