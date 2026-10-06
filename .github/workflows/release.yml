@@ -297,6 +297,7 @@ jobs:
           cp "$CRATE" release-artifacts/
           (cd release-artifacts && sha256sum "${PACKAGE_NAME}-${VERSION}.crate" > "${PACKAGE_NAME}-${VERSION}.crate.sha256")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "$CRATE" | awk '{ print $1 }')" >> "$GITHUB_OUTPUT"
 
       - name: Verify crates.io publish (dry run)
         if: env.DRY_RUN == 'true'
@@ -304,21 +305,31 @@ jobs:
 
       # crates.io versions are immutable, so a rerun (or a second run for the
       # same tag) skips a version that is already published instead of failing.
+      # cargo package output is reproducible, so the skip is only taken when
+      # the registry archive is byte-identical to the one packaged from this
+      # tag; otherwise the release assets would describe different source.
       - name: Check crates.io for this version
         id: pending
         if: env.DRY_RUN != 'true'
         env:
           VERSION: ${{ steps.package.outputs.version }}
+          LOCAL_SHA256: ${{ steps.package.outputs.sha256 }}
         shell: bash
         run: |
           set -euo pipefail
+          RESPONSE="$(mktemp)"
           STATUS="$(curl --silent --show-error --retry 3 --retry-all-errors \
             --user-agent "${GITHUB_REPOSITORY}-release/${GITHUB_RUN_ID} (https://github.com/${GITHUB_REPOSITORY})" \
-            --output /dev/null --write-out '%{http_code}' \
+            --output "$RESPONSE" --write-out '%{http_code}' \
             "https://crates.io/api/v1/crates/${PACKAGE_NAME}/${VERSION}")"
           case "$STATUS" in
             200)
-              echo "::notice::${PACKAGE_NAME} ${VERSION} is already on crates.io; skipping publish"
+              PUBLISHED_SHA256="$(jq -er '.version.checksum' "$RESPONSE")"
+              if [[ "$PUBLISHED_SHA256" != "$LOCAL_SHA256" ]]; then
+                echo "${PACKAGE_NAME} ${VERSION} is already on crates.io with checksum ${PUBLISHED_SHA256}, but this tag packages ${LOCAL_SHA256}" >&2
+                exit 1
+              fi
+              echo "::notice::${PACKAGE_NAME} ${VERSION} is already on crates.io with the same checksum; skipping publish"
               echo "publish=false" >> "$GITHUB_OUTPUT"
               ;;
             404)

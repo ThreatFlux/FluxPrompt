@@ -67,7 +67,7 @@ Dispatch `auto-release.yml` with `dry_run` enabled to see the version and action
 3. builds the library in release mode for Linux (x86_64 glibc and musl, aarch64), macOS (Apple silicon and Intel), and Windows, and runs the library tests on each native target;
 4. generates a CycloneDX SBOM;
 5. runs `scripts/check_package.py` and `cargo package --locked`;
-6. skips publication if this version is already on crates.io (so a rerun is safe), otherwise publishes with a trusted-publishing token from the `crates-io` environment;
+6. skips publication if this version is already on crates.io with a byte-identical archive (so a rerun is safe) and fails if the registry archive differs, otherwise publishes with a trusted-publishing token from the `crates-io` environment;
 7. attaches the `.crate` archive, checksum, file list, and SBOM to the GitHub release, creating the release if it does not exist yet.
 
 Monitor every job. Do not assume that tag creation means a crate exists.
