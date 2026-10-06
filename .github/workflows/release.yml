@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version to release, e.g. 0.2.1 (defaults to the Cargo.toml version). A real release must run on its v<version> tag.
+        description: Version to release, e.g. 0.2.1 (defaults to the Cargo.toml version). A real release must run on its v<version> tag; a dry run always verifies the Cargo.toml version.
         required: false
         type: string
       dry_run:
@@ -59,8 +59,8 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       # The crate is published at its Cargo.toml version, so a real release
-      # must run on exactly v<manifest version>. A dry run may rehearse a
-      # version that is not bumped yet, so it only warns.
+      # must run on exactly v<manifest version>. A dry run always packages and
+      # verifies the manifest version, so it is labelled with that version.
       - name: Determine release version
         id: version
         env:
@@ -78,7 +78,8 @@ jobs:
 
           if [[ "$DRY_RUN" == "true" ]]; then
             if [[ "$VERSION" != "$MANIFEST_VERSION" ]]; then
-              echo "::warning::Cargo.toml version ${MANIFEST_VERSION} does not match requested version ${VERSION}; the dry run packages and verifies ${MANIFEST_VERSION}"
+              echo "::warning::Ignoring requested version ${VERSION}: a dry run packages and verifies the Cargo.toml version ${MANIFEST_VERSION}, and its summary and artifacts use that version"
+              VERSION="$MANIFEST_VERSION"
             fi
           else
             if [[ "$GITHUB_REF" != refs/tags/* ]]; then
