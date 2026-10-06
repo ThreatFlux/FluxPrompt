@@ -9,7 +9,7 @@ Builders do not all validate automatically. Detector constructors validate befor
 
 ## Install From crates.io
 
-FluxPrompt 0.2.0 requires Rust 1.97.1 or later:
+FluxPrompt 0.2.1 requires Rust 1.97.1 or later:
 
 ```toml
 [dependencies]
@@ -17,7 +17,7 @@ fluxprompt = "0.2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
-Commit `Cargo.lock` in applications. Use `fluxprompt = "=0.2.0"` when policy requires an exact direct-dependency version, and review upgrades before deployment.
+Commit `Cargo.lock` in applications. Use `fluxprompt = "=0.2.1"` when policy requires an exact direct-dependency version, and review upgrades before deployment.
 
 The `metrics` and `experimental` Cargo features are retained as compatibility no-ops for existing dependency declarations. Runtime metrics are controlled by `DetectionConfig::enable_metrics`; neither feature enables additional code.
 
