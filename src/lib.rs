@@ -336,6 +336,17 @@ impl FluxPrompt {
 mod tests {
     use super::*;
 
+    /// `analysis_duration_ms` truncates to whole milliseconds, so a fast
+    /// analysis (for example in a release build) legitimately records 0 ms.
+    /// It can never exceed the wall-clock time measured around the same call.
+    fn assert_recorded_duration(duration_ms: u64, elapsed: std::time::Duration) {
+        assert!(
+            u128::from(duration_ms) <= elapsed.as_millis(),
+            "recorded {duration_ms} ms for a call that took {} ms",
+            elapsed.as_millis()
+        );
+    }
+
     #[tokio::test]
     async fn test_basic_detection() {
         let config = DetectionConfig::default();
@@ -569,10 +580,12 @@ mod tests {
             let detector = FluxPrompt::new(config).await.unwrap();
 
             // Test with moderate threat
+            let started = std::time::Instant::now();
             let result = detector.analyze("Please help me urgently").await.unwrap();
+            let elapsed = started.elapsed();
 
             // Should complete without error regardless of severity
-            assert!(result.detection_result().analysis_duration_ms() > 0);
+            assert_recorded_duration(result.detection_result().analysis_duration_ms(), elapsed);
         }
     }
 
@@ -686,13 +699,18 @@ mod tests {
 
         // Test with long input
         let long_input = "a".repeat(5000);
+        let started = std::time::Instant::now();
         let result = detector.analyze(&long_input).await;
+        let elapsed = started.elapsed();
 
         // Should handle gracefully
         assert!(result.is_ok(), "Should handle long input");
 
         if let Ok(analysis_result) = result {
-            assert!(analysis_result.detection_result().analysis_duration_ms() > 0);
+            assert_recorded_duration(
+                analysis_result.detection_result().analysis_duration_ms(),
+                elapsed,
+            );
         }
     }
 
@@ -707,10 +725,12 @@ mod tests {
 
         // Test semantic patterns
         let semantic_test = "My manager said this is between you and me";
+        let started = std::time::Instant::now();
         let result = detector.analyze(semantic_test).await.unwrap();
+        let elapsed = started.elapsed();
 
         // Should complete without error
-        assert!(result.detection_result().analysis_duration_ms() > 0);
+        assert_recorded_duration(result.detection_result().analysis_duration_ms(), elapsed);
     }
 
     #[tokio::test]
@@ -722,9 +742,11 @@ mod tests {
             .build();
 
         let detector = FluxPrompt::new(config).await.unwrap();
+        let started = std::time::Instant::now();
         let result = detector.analyze("Test input").await.unwrap();
+        let elapsed = started.elapsed();
 
         // Should handle custom strategy without error
-        assert!(result.detection_result().analysis_duration_ms() > 0);
+        assert_recorded_duration(result.detection_result().analysis_duration_ms(), elapsed);
     }
 }

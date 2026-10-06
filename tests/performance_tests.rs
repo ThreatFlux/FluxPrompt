@@ -295,8 +295,12 @@ async fn test_large_input_performance() {
                     size
                 );
 
-                // Should still produce valid results
-                assert!(analysis_result.detection_result().analysis_duration_ms() > 0);
+                // The recorded duration is truncated to whole milliseconds, so a
+                // fast analysis may report 0 ms, but never more than the caller saw.
+                assert!(
+                    u128::from(analysis_result.detection_result().analysis_duration_ms())
+                        <= elapsed.as_millis()
+                );
             }
             Ok(Err(_)) => {
                 // Errors are acceptable for very large inputs
@@ -369,7 +373,10 @@ async fn test_configuration_change_performance() {
             analysis_time.as_millis() < 1000,
             "Analysis after config change should be reasonable"
         );
-        assert!(result.detection_result().analysis_duration_ms() > 0);
+        assert!(
+            u128::from(result.detection_result().analysis_duration_ms())
+                <= analysis_time.as_millis()
+        );
     }
 }
 
