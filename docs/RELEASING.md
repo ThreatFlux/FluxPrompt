@@ -7,7 +7,7 @@ This runbook describes the current GitHub Actions workflows for the published `f
 - `Cargo.toml` is the package-version source of truth.
 - Release tags use `v<package-version>`, for example `v0.2.0`, and must be annotated tags whose commit is on `main`.
 - The release workflow publishes one Rust library crate with crates.io trusted publishing.
-- It does not build or attach platform binaries. It compiles and tests the library on every supported target and attaches the verified `.crate` archive, its SHA-256 checksum, its file list, and a CycloneDX SBOM to the GitHub release.
+- It does not build or attach platform binaries. It compiles and tests the library on every supported target and attaches the verified `.crate` archive, its file list, a CycloneDX SBOM, and a SHA-256 checksum for the crate and the SBOM to the GitHub release. The crate and the SBOM also get a signed build provenance attestation.
 - crates.io releases cannot be deleted; a defective version can only be yanked and superseded.
 
 ## Required Access
@@ -18,7 +18,7 @@ No long-lived registry or GitHub token is stored for releases.
 | --- | --- | --- |
 | ThreatFlux automation GitHub App (`TF_AUTOMATION_APP_ID` organization variable, `TF_AUTOMATION_APP_PRIVATE_KEY` organization secret) | `auto-release.yml` release job | Commit the version bump, push the annotated tag, and create the GitHub release. An App-pushed tag starts `release.yml` on its own. |
 | crates.io trusted publishing (owner `ThreatFlux`, workflow `release.yml`, environment `crates-io`) | `release.yml` publish job (`id-token: write`) | Exchange the job's OIDC identity for a short-lived crates.io token with `rust-lang/crates-io-auth-action`. |
-| GitHub Actions `GITHUB_TOKEN` | `release.yml` GitHub release job (`contents: write`) | Attach the release assets. |
+| GitHub Actions `GITHUB_TOKEN` and OIDC | `release.yml` GitHub release job (`contents: write`, `attestations: write`, `id-token: write`) | Attach the release assets, set the release notes, and record the build provenance attestation. |
 
 The trusted publisher is bound to the workflow file name `release.yml` and the `crates-io` environment; renaming either breaks publication. Restrict the `crates-io` environment to release tags and protect `v*` tags with a repository ruleset so release tags cannot be created or moved by ordinary writers.
 
@@ -68,7 +68,7 @@ Dispatch `auto-release.yml` with `dry_run` enabled to see the version and action
 4. generates a CycloneDX SBOM;
 5. runs `scripts/check_package.py` and `cargo package --locked`;
 6. skips publication if this version is already on crates.io with a byte-identical archive (so a rerun is safe) and fails if the registry archive differs, otherwise publishes with a trusted-publishing token from the `crates-io` environment;
-7. attaches the `.crate` archive, checksum, file list, and SBOM to the GitHub release, creating the release if it does not exist yet.
+7. checks that the packaged crate is byte-identical to the archive crates.io serves, records a signed build provenance attestation for the crate and the SBOM, and attaches the crate, its file list, the SBOM, and a SHA-256 checksum for each of the crate and the SBOM to the GitHub release, creating the release if it does not exist yet. When `CHANGELOG.md` has a `## [x.y.z]` section for the version, its text replaces the notes Auto Release generated, which list only `feat`, `fix`, and breaking commits.
 
 Monitor every job. Do not assume that tag creation means a crate exists.
 
@@ -104,7 +104,14 @@ If GitHub did not create a run for the tag, first confirm that no release run is
 
 1. Confirm the owner, version, license, repository link, README, and rendered rustdoc on crates.io/docs.rs.
 2. Verify a fresh project can resolve the registry dependency and run the README quickstart.
-3. Confirm the GitHub release points to the immutable tag and has accurate notes.
+3. Confirm the GitHub release points to the immutable tag and has accurate notes, then verify an attached asset and its attestation:
+
+   ```bash
+   gh release download v0.2.1 --repo ThreatFlux/FluxPrompt --pattern 'fluxprompt-0.2.1.crate*'
+   sha256sum --check fluxprompt-0.2.1.crate.sha256
+   gh attestation verify fluxprompt-0.2.1.crate --repo ThreatFlux/FluxPrompt
+   ```
+
 4. Announce only capabilities and compatibility supported by the shipped source and documentation.
 
 Documentation publishing is separate: `.github/workflows/docs.yml` builds pull-request docs and deploys generated rustdoc from `main`.

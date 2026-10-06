@@ -4,12 +4,17 @@ Notable user-visible changes are recorded here. This project uses the structure 
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-06
+
+This release does not change the public API or detection behavior. It raises the minimum versions of the direct dependencies to their current stable releases (for example `tokio` 1.53.2, `serde` 1.0.229, and `regex` 1.13.1) and refreshes the toolchain and release pipeline.
+
 ### Changed
 
 - Updated the development toolchain to Rust 1.99.0, stable dependencies, and GitHub Actions while retaining Rust 1.97.1 as the minimum supported version.
 - Added explicit CI compiler verification and an MSRV compatibility lane, and a worktree-specific pre-push local CI gate.
 - Release automation now publishes to crates.io with trusted publishing (OIDC) instead of a stored registry token, cuts releases as the ThreatFlux automation GitHub App, builds the library for every supported target and runs its tests on each native target (the x86_64 musl target is build-only), attaches the verified crate, checksum, and CycloneDX SBOM to the GitHub release, and supports `dry_run` rehearsals of both release workflows.
 - Coverage uploads to Codecov with OIDC instead of a stored token.
+- GitHub releases now carry a SHA-256 checksum for both the crate and the SBOM, a signed build provenance attestation for each, and notes taken from this changelog; the attached crate is checked to be byte-identical to the one published on crates.io.
 
 ## [0.2.0] - 2026-08-03
 
@@ -66,6 +71,7 @@ Notable user-visible changes are recorded here. This project uses the structure 
 
 FluxPrompt 0.1.0 was released as a GitHub tag. It was not published to crates.io.
 
-[Unreleased]: https://github.com/ThreatFlux/FluxPrompt/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ThreatFlux/FluxPrompt/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/ThreatFlux/FluxPrompt/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/ThreatFlux/FluxPrompt/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ThreatFlux/FluxPrompt/releases/tag/v0.1.0
