@@ -24,8 +24,8 @@ install-tools:
 	@command -v cargo-deny >/dev/null 2>&1 || cargo install --locked cargo-deny --version 0.20.2
 	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install --locked cargo-llvm-cov --version 0.9.1
 	@command -v cargo-deadlinks >/dev/null 2>&1 || cargo install --locked cargo-deadlinks --version 0.8.1
-	@command -v cargo-geiger >/dev/null 2>&1 || cargo install --locked cargo-geiger --version 0.13.0
-	@command -v cargo-supply-chain >/dev/null 2>&1 || cargo install --locked cargo-supply-chain --version 0.3.7
+	@command -v cargo-geiger >/dev/null 2>&1 || cargo install --locked cargo-geiger --version 0.14.0
+	@command -v cargo-supply-chain >/dev/null 2>&1 || cargo install --locked cargo-supply-chain --version 0.3.8
 	@command -v cargo-semver-checks >/dev/null 2>&1 || cargo install --locked cargo-semver-checks --version 0.51.0
 	@command -v cargo-cyclonedx >/dev/null 2>&1 || cargo install --locked cargo-cyclonedx --version 0.5.9
 	@echo "✅ Tools installed"
