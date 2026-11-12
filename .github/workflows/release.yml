@@ -32,8 +32,8 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
-  RUST_VERSION: "1.99.1"
-  RUSTUP_TOOLCHAIN: "1.99.1"
+  RUST_VERSION: "1.100.0"
+  RUSTUP_TOOLCHAIN: "1.100.0"
   PACKAGE_NAME: fluxprompt
   # Only workflow_dispatch can set this; tag pushes always perform a real release.
   DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
