@@ -44,7 +44,7 @@ jobs:
           node-version: "26.13.1"
 
       - name: Lint Markdown
-        run: npx --yes markdownlint-cli2@0.23.3
+        run: npx --yes markdownlint-cli2@0.24.1
 
       - name: Check documentation contracts
         run: python3 scripts/check_docs.py
@@ -209,7 +209,7 @@ jobs:
           use_oidc: true
           files: lcov.info
           fail_ci_if_error: false
-          version: "v11.3.1"
+          version: "v11.3.2"
 
   benchmarks:
     name: Benchmarks
