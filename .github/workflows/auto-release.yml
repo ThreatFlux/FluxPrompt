@@ -5,6 +5,7 @@ concurrency:
   # between its release commit, tag, and downstream publishing dispatch.
   group: auto-release-${{ github.repository }}-main${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '-dry-run' || '' }}
   cancel-in-progress: false
+  queue: max
 
 on:
   # workflow_run is required to release only after CI and Security Audit pass
