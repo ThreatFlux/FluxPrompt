@@ -3,7 +3,7 @@ name: Auto Release
 concurrency:
   # Serialize real releases: a later workflow completion must not cancel a run
   # between its release commit, tag, and downstream publishing dispatch.
-  group: auto-release-${{ github.event.workflow_run.head_repository.full_name || github.repository }}-${{ github.event.workflow_run.head_branch || github.ref_name || 'main' }}${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '-dry-run' || '' }}
+  group: auto-release-${{ github.repository }}-main${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '-dry-run' || '' }}
   cancel-in-progress: false
 
 on:

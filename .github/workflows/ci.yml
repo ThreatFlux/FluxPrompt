@@ -52,7 +52,7 @@ jobs:
   test:
     name: Test Suite (Rust 1.99.1)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,7 +96,9 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: Run tests
-        timeout-minutes: 10
+        # Full property and stress suites repeatedly construct detectors; retain
+        # all generated cases and allow the hosted runner enough time to finish.
+        timeout-minutes: 45
         run: cargo test --locked --verbose -- --nocapture
 
       - name: Build documentation
