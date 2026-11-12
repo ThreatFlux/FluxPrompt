@@ -4,6 +4,11 @@ Notable user-visible changes are recorded here. This project uses the structure 
 
 ## [Unreleased]
 
+### Changed
+
+- Update the development and release compiler to Rust 1.100.0, retaining the Rust 1.97.1 consumer minimum and beta compatibility lane.
+- Refresh stable dependencies and CI tools, enforce pinned installed tool versions, and allow the full property suite to finish on shared runners.
+
 ## [0.2.1] - 2026-10-06
 
 This release does not change the public API or detection behavior. It raises the minimum versions of the direct dependencies to their current stable releases (for example `tokio` 1.53.2, `serde` 1.0.229, and `regex` 1.13.1) and refreshes the toolchain and release pipeline.

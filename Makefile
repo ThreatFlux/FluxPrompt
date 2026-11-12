@@ -17,17 +17,18 @@ hooks-install:
 	@bash scripts/install-hooks.sh
 
 # Install required tools
+# Cargo itself skips matching installed versions and replaces stale versions.
 install-tools:
 	@echo "📦 Installing required tools..."
-	@command -v cargo-audit >/dev/null 2>&1 || cargo install --locked cargo-audit --version 0.22.2
-	@command -v cargo-outdated >/dev/null 2>&1 || cargo install --locked cargo-outdated --version 0.19.0
-	@command -v cargo-deny >/dev/null 2>&1 || cargo install --locked cargo-deny --version 0.20.2
-	@command -v cargo-llvm-cov >/dev/null 2>&1 || cargo install --locked cargo-llvm-cov --version 0.9.1
-	@command -v cargo-deadlinks >/dev/null 2>&1 || cargo install --locked cargo-deadlinks --version 0.8.1
-	@command -v cargo-geiger >/dev/null 2>&1 || cargo install --locked cargo-geiger --version 0.14.0
-	@command -v cargo-supply-chain >/dev/null 2>&1 || cargo install --locked cargo-supply-chain --version 0.3.8
-	@command -v cargo-semver-checks >/dev/null 2>&1 || cargo install --locked cargo-semver-checks --version 0.51.0
-	@command -v cargo-cyclonedx >/dev/null 2>&1 || cargo install --locked cargo-cyclonedx --version 0.5.9
+	@cargo install --locked cargo-audit --version 0.23.0
+	@cargo install --locked cargo-outdated --version 0.19.0
+	@cargo install --locked cargo-deny --version 0.20.2
+	@cargo install --locked cargo-llvm-cov --version 0.9.1
+	@cargo install --locked cargo-deadlinks --version 0.8.1
+	@cargo install --locked cargo-geiger --version 0.14.0
+	@cargo install --locked cargo-supply-chain --version 0.3.8
+	@cargo install --locked cargo-semver-checks --version 0.51.0
+	@cargo install --locked cargo-cyclonedx --version 0.5.10
 	@echo "✅ Tools installed"
 
 # Format code
@@ -45,7 +46,7 @@ fmt-check:
 # Lint Markdown documentation
 markdownlint:
 	@echo "📝 Linting Markdown..."
-	@npx --yes markdownlint-cli2@0.23.3
+	@npx --yes markdownlint-cli2@0.24.1
 	@python3 scripts/check_docs.py
 	@echo "✅ Markdown lint passed"
 

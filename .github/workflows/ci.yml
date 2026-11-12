@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  RUSTUP_TOOLCHAIN: "1.99.1"
+  RUSTUP_TOOLCHAIN: "1.100.0"
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-D warnings"
@@ -41,17 +41,18 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "24"
+          node-version: "26.13.1"
 
       - name: Lint Markdown
-        run: npx --yes markdownlint-cli2@0.23.3
+        run: npx --yes markdownlint-cli2@0.24.1
 
       - name: Check documentation contracts
         run: python3 scripts/check_docs.py
 
   test:
-    name: Test Suite (Rust 1.99.1)
+    name: Test Suite (Rust 1.100.0)
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout sources
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,7 +62,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
-          toolchain: "1.99.1"
+          toolchain: "1.100.0"
           components: rustfmt, clippy
 
       - name: Verify selected Rust compiler
@@ -86,7 +87,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-1.99.1-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-1.100.0-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Check formatting
         run: cargo fmt -- --check
@@ -95,7 +96,10 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: Run tests
-        run: cargo test --locked --verbose
+        # Full property and stress suites repeatedly construct detectors; retain
+        # all generated cases and allow the hosted runner enough time to finish.
+        timeout-minutes: 45
+        run: cargo test --locked --verbose -- --nocapture
 
       - name: Build documentation
         run: cargo doc --locked --no-deps
@@ -116,7 +120,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            rust: "1.99.1"
+            rust: "1.100.0"
             run_lib_tests: false
           - os: ubuntu-latest
             rust: "1.97.1"
@@ -125,10 +129,10 @@ jobs:
             rust: beta
             run_lib_tests: false
           - os: windows-latest
-            rust: "1.99.1"
+            rust: "1.100.0"
             run_lib_tests: true
           - os: macos-latest
-            rust: "1.99.1"
+            rust: "1.100.0"
             run_lib_tests: true
     steps:
       - name: Checkout sources
@@ -182,7 +186,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
-          toolchain: "1.99.1"
+          toolchain: "1.100.0"
           components: llvm-tools-preview
 
       - name: Verify selected Rust compiler
@@ -192,7 +196,7 @@ jobs:
           cargo --version
 
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2.89.1
+        uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
         with:
           tool: cargo-llvm-cov@0.9.1
 
@@ -205,7 +209,7 @@ jobs:
           use_oidc: true
           files: lcov.info
           fail_ci_if_error: false
-          version: "v11.3.1"
+          version: "v11.3.2"
 
   benchmarks:
     name: Benchmarks
@@ -220,7 +224,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
-          toolchain: "1.99.1"
+          toolchain: "1.100.0"
 
       - name: Verify selected Rust compiler
         run: |

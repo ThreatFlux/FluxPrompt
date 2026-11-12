@@ -6,7 +6,7 @@ By participating, follow the [Code of Conduct](CODE_OF_CONDUCT.md). Report vulne
 
 ## Prerequisites
 
-- Rust 1.99.0, pinned by `rust-toolchain.toml`, with Rustfmt and Clippy;
+- Rust 1.100.0, pinned by `rust-toolchain.toml`, with Rustfmt and Clippy;
 - Git;
 - Python 3 for the dependency-free documentation consistency check;
 - Node.js/npm only when running Markdownlint locally;
@@ -66,7 +66,7 @@ python3 scripts/check_package.py
 
 `make ci-local` runs the repository's local CI approximation. Inspect the Makefile and GitHub workflows when exact parity matters; security and coverage tools may require separate installation and can take longer.
 
-`make hooks-install` installs the repository's pre-push `make ci-local` gate for the current worktree. The development toolchain is Rust 1.99.0; Rust 1.97.1 remains the minimum supported version and has its own compatibility check.
+`make hooks-install` installs the repository's pre-push `make ci-local` gate for the current worktree. The development toolchain is Rust 1.100.0; Rust 1.97.1 remains the minimum supported version and has its own compatibility check.
 
 Useful focused commands:
 
