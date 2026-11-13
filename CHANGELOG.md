@@ -8,6 +8,7 @@ Notable user-visible changes are recorded here. This project uses the structure 
 
 - Update the development and release compiler to Rust 1.100.0, retaining the Rust 1.97.1 consumer minimum and beta compatibility lane.
 - Refresh stable dependencies and CI tools, enforce pinned installed tool versions, and allow the full property suite to finish on shared runners.
+- Adopt the verified shared release workflow for current-main publishing and read-only feature previews; update the locked TLS verifier to 0.103.17.
 
 ## [0.2.1] - 2026-10-06
 
