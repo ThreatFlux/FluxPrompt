@@ -16,7 +16,7 @@ No long-lived registry or GitHub token is stored for releases.
 
 | Credential | Scope | Purpose |
 | --- | --- | --- |
-| ThreatFlux automation GitHub App (`TF_AUTOMATION_APP_ID` organization variable, `TF_AUTOMATION_APP_PRIVATE_KEY` organization secret) | `auto-release.yml` release job | Commit the version bump, push the annotated tag, and create the GitHub release. An App-pushed tag starts `release.yml` on its own. |
+| ThreatFlux automation GitHub App (`TF_AUTOMATION_APP_ID` organization variable, `TF_AUTOMATION_APP_PRIVATE_KEY` organization secret) | `auto-release.yml` release job | Open or update the release pull request, then tag the tested release commit after merge and create the GitHub release. An App-pushed tag starts `release.yml` on its own. |
 | crates.io trusted publishing (owner `ThreatFlux`, workflow `release.yml`, environment `crates-io`) | `release.yml` publish job (`id-token: write`) | Exchange the job's OIDC identity for a short-lived crates.io token with `rust-lang/crates-io-auth-action`. |
 | GitHub Actions `GITHUB_TOKEN` and OIDC | `release.yml` GitHub release job (`contents: write`, `attestations: write`, `id-token: write`) | Attach the release assets, set the release notes, and record the build provenance attestation. |
 
@@ -54,7 +54,8 @@ The trusted publisher is bound to the workflow file name `release.yml` and the `
 
 1. computes the next version from the Conventional Commit subjects (or the `version_bump` chosen in a manual dispatch);
 2. stops if `Cargo.toml` is behind the latest release tag;
-3. commits the version bump to `main`, pushes the annotated `v<version>` tag, and creates the GitHub release, all as the ThreatFlux automation App.
+3. opens or updates a release pull request with the version bump as the ThreatFlux automation App;
+4. after the required owner review and merge, waits for CI and Security Audit to succeed on the resulting `main` commit, then pushes the annotated `v<version>` tag for that commit and creates the GitHub release.
 
 The App's tag push starts `release.yml` directly, so the reusable workflow does not dispatch it a second time. `chore`, `ci`, `build`, `docs`, and `test` commits never start a release.
 
