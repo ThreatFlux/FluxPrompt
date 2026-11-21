@@ -1,3 +1,4 @@
+---
 version: 2
 updates:
   - package-ecosystem: "cargo"
@@ -6,7 +7,7 @@ updates:
       interval: "cron"
       cronjob: "0 6 * * *"
     open-pull-requests-limit: 10
-    # Let new releases settle before proposing them; security updates are not delayed.
+    # Give new versions time to settle. Security updates have no cooldown.
     cooldown:
       default-days: 7
     labels:
