@@ -3,8 +3,8 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "cron"
+      cronjob: "0 6 * * *"
     open-pull-requests-limit: 10
     # Let new releases settle before proposing them; security updates are not delayed.
     cooldown:
@@ -24,8 +24,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "cron"
+      cronjob: "0 6 * * *"
     open-pull-requests-limit: 5
     cooldown:
       default-days: 7
