@@ -55,7 +55,10 @@ The trusted publisher is bound to the workflow file name `release.yml` and the `
 1. computes the next version from the Conventional Commit subjects (or the `version_bump` chosen in a manual dispatch);
 2. stops if `Cargo.toml` is behind the latest release tag;
 3. opens or updates a release pull request with the version bump as the ThreatFlux automation App;
-4. after the required owner review and merge, waits for CI and Security Audit to succeed on the resulting `main` commit, then pushes the annotated `v<version>` tag for that commit and creates the GitHub release.
+4. verifies that an untagged version came from the signed merge of its matching automation release pull request, with the same base and tree as the signed proposal;
+5. once CI and Security Audit pass on the current `main` commit, checks the version against all changes since the latest release. If later changes require a higher version, it opens or updates a release pull request for owner review. Otherwise it tags the tested commit and creates the GitHub release.
+
+Refresh and re-review a release pull request if its base advances before merge. A higher version selected by manual dispatch is preserved when it covers the changes being released.
 
 The App's tag push starts `release.yml` directly, so the reusable workflow does not dispatch it a second time. `chore`, `ci`, `build`, `docs`, and `test` commits never start a release.
 
