@@ -97,7 +97,7 @@ jobs:
       actions: write # Dispatch release.yml on the GITHUB_TOKEN fallback path.
       contents: write # Version bump commit, tag and GitHub release on the fallback path.
       pull-requests: write # Release pull requests in create-pr mode.
-    uses: ThreatFlux/github_actions/.github/workflows/reusable-auto-release.yml@4b82a749e7479114c3335dd2806bb24f1b71cfe8 # reviewed release correction and signed runtime pin
+    uses: ThreatFlux/github_actions/.github/workflows/reusable-auto-release.yml@0f0945765f7c846ba769e8b90f1f0dbbce641000 # reviewed release correction and signed runtime pin
     with:
       bump: ${{ github.event.inputs.version_bump || 'auto' }}
       # Only a manual dispatch can request a dry run; workflow_run always releases.
