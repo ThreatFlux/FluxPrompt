@@ -74,9 +74,18 @@ expect_rejection() {
 }
 
 verify
-jq --arg parent "$candidate" '.[0].parents[0].sha = $parent' \
-  "$api_fixtures/$proposal.json" > "$api_fixtures/$origin.json"
-expect_rejection 'different base or tree'
+cp -- "$api_fixtures/$proposal.json" proof.json
+reject_proof() {
+  local commit="$1" change="$2"
+  local response="$api_fixtures/$commit.json"
+  jq --arg different_sha "$candidate" "$change" proof.json > "$response"
+  expect_rejection 'without verified signatures or with a different base or tree'
+  cp -- proof.json "$response"
+}
+reject_proof "$origin" '.[0].parents[0].sha = $different_sha'
+reject_proof "$origin" '.[0].commit.tree.sha = $different_sha'
+reject_proof "$proposal" '.[0].commit.verification.verified = false'
+reject_proof "$origin" '.[0].commit.verification.verified = false'
 printf '[[]]\n' > "$api_fixtures/$origin-pulls.json"
 expect_rejection 'did not originate'
 printf '[[{"ref":"refs/tags/v0.2.6"}]]\n' > tags.json

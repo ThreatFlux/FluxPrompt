@@ -22,7 +22,9 @@ No long-lived registry or GitHub token is stored for releases.
 
 The trusted publisher is bound to the workflow file name `release.yml` and the `crates-io` environment; renaming either breaks publication. Restrict the `crates-io` environment to release tags and protect `v*` tags with a repository ruleset so release tags cannot be created or moved by ordinary writers.
 
-## Prepare a Release
+## Prepare a Manual Release
+
+For Auto Release, let the `automation/release` pull request carry the version bump and review that proposal before merging. The version changes below apply when preparing a release for the manual tag path.
 
 1. Decide the version using the public API, serialized configuration, and behavioral changes—not only commit labels.
 2. Move relevant entries from `Unreleased` to `## [x.y.z] - YYYY-MM-DD` in `CHANGELOG.md` and update comparison links.
