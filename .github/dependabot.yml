@@ -1,41 +1,33 @@
+---
 version: 2
+multi-ecosystem-groups:
+  nightly-dependencies:
+    open-pull-requests-limit: 1
+    schedule:
+      interval: "cron"
+      cronjob: "0 6 * * *"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
 updates:
   - package-ecosystem: "cargo"
     directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
-    # Let new releases settle before proposing them; security updates are not delayed.
+    patterns: ["*"]
+    multi-ecosystem-group: "nightly-dependencies"
+    # Give new versions time to settle. Security updates have no cooldown.
     cooldown:
       default-days: 7
     labels:
       - "dependencies"
       - "rust"
-    groups:
-      compatible-updates:
-        update-types:
-          - "minor"
-          - "patch"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
 
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 5
+    patterns: ["*"]
+    multi-ecosystem-group: "nightly-dependencies"
     cooldown:
       default-days: 7
     labels:
       - "dependencies"
       - "github-actions"
-    groups:
-      action-updates:
-        patterns:
-          - "*"
-    commit-message:
-      prefix: "ci"
-      include: "scope"

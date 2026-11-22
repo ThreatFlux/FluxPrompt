@@ -16,13 +16,15 @@ No long-lived registry or GitHub token is stored for releases.
 
 | Credential | Scope | Purpose |
 | --- | --- | --- |
-| ThreatFlux automation GitHub App (`TF_AUTOMATION_APP_ID` organization variable, `TF_AUTOMATION_APP_PRIVATE_KEY` organization secret) | `auto-release.yml` release job | Commit the version bump, push the annotated tag, and create the GitHub release. An App-pushed tag starts `release.yml` on its own. |
+| ThreatFlux automation GitHub App (`TF_AUTOMATION_APP_ID` organization variable, `TF_AUTOMATION_APP_PRIVATE_KEY` organization secret) | `auto-release.yml` release job | Open or update the release pull request, then tag the tested release commit after merge and create the GitHub release. An App-pushed tag starts `release.yml` on its own. |
 | crates.io trusted publishing (owner `ThreatFlux`, workflow `release.yml`, environment `crates-io`) | `release.yml` publish job (`id-token: write`) | Exchange the job's OIDC identity for a short-lived crates.io token with `rust-lang/crates-io-auth-action`. |
 | GitHub Actions `GITHUB_TOKEN` and OIDC | `release.yml` GitHub release job (`contents: write`, `attestations: write`, `id-token: write`) | Attach the release assets, set the release notes, and record the build provenance attestation. |
 
 The trusted publisher is bound to the workflow file name `release.yml` and the `crates-io` environment; renaming either breaks publication. Restrict the `crates-io` environment to release tags and protect `v*` tags with a repository ruleset so release tags cannot be created or moved by ordinary writers.
 
-## Prepare a Release
+## Prepare a Manual Release
+
+For Auto Release, let the `automation/release` pull request carry the version bump and review that proposal before merging. The version changes below apply when preparing a release for the manual tag path.
 
 1. Decide the version using the public API, serialized configuration, and behavioral changes—not only commit labels.
 2. Move relevant entries from `Unreleased` to `## [x.y.z] - YYYY-MM-DD` in `CHANGELOG.md` and update comparison links.
@@ -54,7 +56,11 @@ The trusted publisher is bound to the workflow file name `release.yml` and the `
 
 1. computes the next version from the Conventional Commit subjects (or the `version_bump` chosen in a manual dispatch);
 2. stops if `Cargo.toml` is behind the latest release tag;
-3. commits the version bump to `main`, pushes the annotated `v<version>` tag, and creates the GitHub release, all as the ThreatFlux automation App.
+3. opens or updates a release pull request with the version bump as the ThreatFlux automation App;
+4. verifies that an untagged version came from the signed merge of its matching automation release pull request, with the same base and tree as the signed proposal;
+5. once CI and Security Audit pass on the current `main` commit, checks the version against all changes since the latest release. If later changes require a higher version, it opens or updates a release pull request for owner review. Otherwise it tags the tested commit and creates the GitHub release.
+
+Refresh and re-review a release pull request if its base advances before merge. A higher version selected by manual dispatch is preserved when it covers the changes being released.
 
 The App's tag push starts `release.yml` directly, so the reusable workflow does not dispatch it a second time. `chore`, `ci`, `build`, `docs`, and `test` commits never start a release.
 
