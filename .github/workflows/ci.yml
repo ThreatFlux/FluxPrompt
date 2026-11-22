@@ -50,7 +50,7 @@ jobs:
         run: python3 scripts/check_docs.py
 
       - name: Test release proposal source verification
-        run: python3 scripts/test_release_source.py
+        run: bash scripts/test_release_source.sh
 
   test:
     name: Test Suite (Rust 1.100.0)

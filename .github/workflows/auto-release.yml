@@ -84,7 +84,7 @@ jobs:
             echo "Skipping release because main has moved."
             exit 0
           fi
-          python3 -I scripts/check_release_source.py "$SOURCE_SHA" "$RELEASE_AUTHOR"
+          bash scripts/check_release_source.sh "$SOURCE_SHA" "$RELEASE_AUTHOR"
           echo "ready=true" >> "$GITHUB_OUTPUT"
 
   release:
